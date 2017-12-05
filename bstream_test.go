@@ -140,4 +140,37 @@ func TestBStreamWriteAndReadBits(t *testing.T) {
 	if err != io.EOF {
 		t.Fatalf("expected io.EOF, got %v", err)
 	}
+
+	// test MarshalBinary
+	data, err := bs.MarshalBinary()
+	if err != nil {
+		t.Fatalf("expeted nil error marshaling binary, got %s", err)
+	}
+
+	newBS := new(bstream)
+	if err := newBS.UnmarshalBinary(data); err != nil {
+		t.Fatalf("expected nil error unmarshaling binary, got %s", err)
+	}
+
+	if newBS.wBit != bs.wBit {
+		t.Fatalf("malformed wBit %d - %d", bs.wBit, newBS.wBit)
+	}
+
+	// if newBS.rIdx != bs.rIdx {
+	// 	t.Fatalf("malformed rIdx %d - %d", bs.rIdx, newBS.rIdx)
+	// }
+
+	// if newBS.rBit != bs.rBit {
+	// 	t.Fatalf("malformed rBit %d - %d", bs.rBit, newBS.rBit)
+	// }
+
+	if len(newBS.stream) != len(bs.stream) {
+		t.Fatalf("malformed stream length %d - %d", len(newBS.stream), len(bs.stream))
+	}
+
+	for i := range newBS.stream {
+		if newBS.stream[i] != bs.stream[i] {
+
+		}
+	}
 }

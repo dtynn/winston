@@ -1,7 +1,15 @@
 package winston
 
 import (
+	"bytes"
+	"encoding"
+	"encoding/binary"
 	"io"
+)
+
+var (
+	_ encoding.BinaryMarshaler   = (*bstream)(nil)
+	_ encoding.BinaryUnmarshaler = (*bstream)(nil)
 )
 
 type bit bool
@@ -155,4 +163,50 @@ func (bs *bstream) readBits(nbits uint) (uint64, error) {
 	}
 
 	return u, nil
+}
+
+// MarshalBinary impl encoding.BinaryMarshaler
+func (bs *bstream) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if err := binary.Write(buf, binary.BigEndian, bs.wBit); err != nil {
+		return nil, err
+	}
+
+	if err := binary.Write(buf, binary.BigEndian, int64(bs.rIdx)); err != nil {
+		return nil, err
+	}
+
+	if err := binary.Write(buf, binary.BigEndian, bs.rBit); err != nil {
+		return nil, err
+	}
+
+	if err := binary.Write(buf, binary.BigEndian, bs.stream); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary impl encoding.BinaryUnmarshaler
+func (bs *bstream) UnmarshalBinary(b []byte) error {
+	buf := bytes.NewReader(b)
+
+	if err := binary.Read(buf, binary.BigEndian, &bs.wBit); err != nil {
+		return err
+	}
+
+	var rIdx int64
+	if err := binary.Read(buf, binary.BigEndian, &rIdx); err != nil {
+		return err
+	}
+
+	bs.rIdx = int(rIdx)
+
+	if err := binary.Read(buf, binary.BigEndian, &bs.rBit); err != nil {
+		return err
+	}
+
+	bs.stream = make([]byte, buf.Len())
+
+	return binary.Read(buf, binary.BigEndian, &bs.stream)
 }
