@@ -10,7 +10,6 @@ import (
 
 const (
 	defaultLeading = ^uint8(0)
-	finishBits     = ^uint64(0) >> 36
 
 	dodControlBits0    uint64 = 0x00
 	dodControlBits10          = 0x02
@@ -23,12 +22,23 @@ const (
 	valueControlBits11        = 0x03
 )
 
-// NewSeries return new series
+// NewSeries return new series with second precision
 func NewSeries(t time.Time) *Series {
+	return newSeries(t, time.Second)
+}
+
+// NewMilliSeries return new series with millisecond precision
+func NewMilliSeries(t time.Time) *Series {
+	return newSeries(t, time.Millisecond)
+}
+
+func newSeries(t time.Time, precision time.Duration) *Series {
 	s := &Series{
-		t0:      t,
-		bs:      newBStream(10240),
-		leading: defaultLeading,
+		t0:                t,
+		bs:                newBStream(10240),
+		leading:           defaultLeading,
+		precision:         precision,
+		precisionSettings: precisions[precision],
 	}
 
 	s.bs.writeBits(uint64(s.t0.UnixNano()), 64)
@@ -38,6 +48,9 @@ func NewSeries(t time.Time) *Series {
 // Series time series
 type Series struct {
 	sync.RWMutex
+
+	precision time.Duration
+	precisionSettings
 
 	t0        time.Time
 	prevT     time.Time
@@ -53,10 +66,10 @@ type Series struct {
 	err error
 }
 
-func finish(bs *bstream) {
+func finish(bs *bstream, precision time.Duration) {
 	// write an end-of-stream record
 	bs.writeBits(dodControlBits1111, 4)
-	bs.writeBits(finishBits, 28)
+	bs.writeBits(precisions[precision].finish.bits, precisions[precision].finish.n)
 	bs.writeBit(zero)
 }
 
@@ -65,7 +78,7 @@ func (s *Series) Finish() {
 	s.Lock()
 
 	if !s.finished {
-		finish(s.bs)
+		finish(s.bs, s.precision)
 		s.finished = true
 	}
 
@@ -73,18 +86,16 @@ func (s *Series) Finish() {
 }
 
 // Push push timestamp and value bits
-// whoever call this method should make sure that t is within [t0, t0+1day)
-// so that we need at most 28 bits to store the tdelta and delta-of-delta
 func (s *Series) Push(t time.Time, vbits uint64) {
 	s.Lock()
 	defer s.Unlock()
 
-	t = t.Truncate(time.Millisecond)
+	t = t.Truncate(s.precision)
 
 	if s.prevT.IsZero() {
 		s.prevT = t
 		s.prevVBits = vbits
-		s.tdelta = int32(t.Sub(s.t0) / time.Millisecond)
+		s.tdelta = int32(t.Sub(s.t0) / s.precision)
 		// with one-day block, and precision of millisecond, we need at most 28 bits
 		s.bs.writeBits(uint64(zigzag(s.tdelta)), 28)
 		s.bs.writeBits(s.prevVBits, 64)
@@ -92,9 +103,10 @@ func (s *Series) Push(t time.Time, vbits uint64) {
 	}
 
 	// deal with delta-of-delta of timestamp
-	tdelta := int32(t.Sub(s.prevT) / time.Millisecond)
+	tdelta := int32(t.Sub(s.prevT) / s.precision)
 	// delta-of-delta
 	dod := tdelta - s.tdelta
+	var dodCtrlBits uint64
 
 	// in the paper of facebook's gorilla,
 	// they use
@@ -107,25 +119,29 @@ func (s *Series) Push(t time.Time, vbits uint64) {
 		// '0'
 		s.bs.writeBit(zero)
 
-	case -512 <= dod && dod <= 511:
-		// '10' & 10 bit value
+	case inRange(dod, s.precisionSettings.dod[dodControlBits10].dodRange):
+
+		dodCtrlBits = dodControlBits10
 		s.bs.writeBits(dodControlBits10, 2)
-		s.bs.writeBits(uint64(zigzag(dod)), 10)
 
-	case -32768 <= dod && dod <= 32767:
-		// '110' & 16 bit value
+	case inRange(dod, s.precisionSettings.dod[dodControlBits10].dodRange):
+
+		dodCtrlBits = dodControlBits110
 		s.bs.writeBits(dodControlBits110, 3)
-		s.bs.writeBits(uint64(zigzag(dod)), 16)
 
-	case -2097152 <= dod && dod <= 2097151:
-		// '1110' & 22 bit value
+	case inRange(dod, s.precisionSettings.dod[dodControlBits1110].dodRange):
+
+		dodCtrlBits = dodControlBits1110
 		s.bs.writeBits(dodControlBits1110, 4)
-		s.bs.writeBits(uint64(zigzag(dod)), 22)
 
 	default:
 		// '1111' & 28 bit value
+		dodCtrlBits = dodControlBits1111
 		s.bs.writeBits(dodControlBits1111, 4)
-		s.bs.writeBits(uint64(zigzag(dod)), 28)
+	}
+
+	if dodCtrlBits > 0 {
+		s.bs.writeBits(uint64(zigzag(dod)), s.precisionSettings.dod[dodCtrlBits].dodNBits)
 	}
 
 	vdelta := vbits ^ s.prevVBits
@@ -180,21 +196,28 @@ func (s *Series) Iter() (*Iter, error) {
 	bs := s.bs.clone()
 	s.Unlock()
 
-	finish(bs)
+	finish(bs, s.precision)
 	bs.rewind()
 
-	return bstreamIter(bs)
+	return bstreamIter(bs, s.precision)
 }
 
-func bstreamIter(bs *bstream) (*Iter, error) {
+func bstreamIter(bs *bstream, precision time.Duration) (*Iter, error) {
+	precSettings, ok := precisions[precision]
+	if !ok {
+		return nil, fmt.Errorf("unsupport precision %s", precision)
+	}
+
 	t0bits, err := bs.readBits(64)
 	if err != nil {
 		return nil, err
 	}
 
 	it := &Iter{
-		t0: time.Unix(0, int64(t0bits)),
-		bs: bs,
+		t0:                time.Unix(0, int64(t0bits)),
+		bs:                bs,
+		precision:         precision,
+		precisionSettings: precSettings,
 	}
 
 	it.Stat.dod = map[uint64]int{}
@@ -204,13 +227,16 @@ func bstreamIter(bs *bstream) (*Iter, error) {
 }
 
 // NewIter return new iterator with given data
-func NewIter(data []byte) (*Iter, error) {
+func NewIter(data []byte, precision time.Duration) (*Iter, error) {
 	bs := newBStreamWithData(data)
-	return bstreamIter(bs)
+	return bstreamIter(bs, precision)
 }
 
 // Iter stream iter
 type Iter struct {
+	precision time.Duration
+	precisionSettings
+
 	t0     time.Time
 	t      time.Time
 	tdelta int32
@@ -258,7 +284,7 @@ func (i *Iter) Next() bool {
 		}
 
 		i.tdelta = zagzig(uint32(tdeltabits))
-		i.t = newTime(i.t0, i.tdelta)
+		i.t = newTime(i.t0, i.tdelta, i.precision)
 		i.vbits = vbits
 
 		if i.pointStat {
@@ -281,17 +307,11 @@ func (i *Iter) Next() bool {
 		// dodNBits = 0
 		// i.tdelta = i.tdelta
 
-	case dodControlBits10:
-		dodNBits = 10
-
-	case dodControlBits110:
-		dodNBits = 16
-
-	case dodControlBits1110:
-		dodNBits = 22
-
-	case dodControlBits1111:
-		dodNBits = 28
+	case dodControlBits10,
+		dodControlBits110,
+		dodControlBits1110,
+		dodControlBits1111:
+		dodNBits = i.precisionSettings.dod[dodCtrlBits].dodNBits
 
 	default:
 		i.err = fmt.Errorf("malformed dod control bits %02x", dodCtrlBits)
@@ -307,7 +327,7 @@ func (i *Iter) Next() bool {
 			return false
 		}
 
-		if dodCtrlBits == dodControlBits1111 && dodbits == finishBits {
+		if dodCtrlBits == dodControlBits1111 && dodbits == i.precisionSettings.finish.bits {
 			i.finished = true
 			return false
 		}
@@ -316,7 +336,7 @@ func (i *Iter) Next() bool {
 	}
 
 	i.tdelta += dod
-	i.t = newTime(i.t, i.tdelta)
+	i.t = newTime(i.t, i.tdelta, i.precision)
 
 	valCtrlBits, err := readValueControlBits(i.bs)
 	if err != nil {
@@ -379,13 +399,18 @@ func (i *Iter) Next() bool {
 	return true
 }
 
+// Err return last error
+func (i *Iter) Err() error {
+	return i.err
+}
+
 // Point return current point
 func (i *Iter) Point() (time.Time, uint64) {
 	return i.t, i.vbits
 }
 
-func newTime(old time.Time, tdelta int32) time.Time {
-	return old.Add(time.Duration(tdelta) * time.Millisecond)
+func newTime(old time.Time, tdelta int32, precision time.Duration) time.Time {
+	return old.Add(time.Duration(tdelta) * precision)
 }
 
 func readDoDControlBits(bs *bstream) (uint64, error) {
@@ -426,4 +451,8 @@ func readValueControlBits(bs *bstream) (uint64, error) {
 	}
 
 	return bits, nil
+}
+
+func inRange(val int32, r [2]int32) bool {
+	return r[0] <= val && val <= r[1]
 }
