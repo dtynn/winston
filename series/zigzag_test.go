@@ -1,4 +1,4 @@
-package winston
+package series
 
 import (
 	"math"

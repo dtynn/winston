@@ -1,4 +1,4 @@
-package winston
+package series
 
 import (
 	"math/rand"
@@ -103,7 +103,7 @@ func TestMilliSeriesAndIter(t *testing.T) {
 		t.Fatalf("expected %d points, got %d", len(points), i)
 	}
 
-	t.Logf("expected space %dB, actual space %dB", len(points)*16, len(ts.bs.stream))
+	t.Logf("expected %d Bytes, got %d Bytes", len(points)*16, len(ts.bs.stream))
 	t.Logf("point stat %v", iter.Stat)
 }
 
@@ -159,7 +159,7 @@ func TestSeriesAndIter(t *testing.T) {
 		t.Fatalf("expected %d points, got %d", len(points), i)
 	}
 
-	t.Logf("expected space %d Bytes, actual space %d Bytes", len(points)*16, len(ts.bs.stream))
+	t.Logf("expected %d Bytes, got %d Bytes", len(points)*16, len(ts.bs.stream))
 	t.Logf("point stat %v", iter.Stat)
 }
 
