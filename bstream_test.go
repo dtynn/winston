@@ -1,6 +1,7 @@
 package winston
 
 import (
+	"fmt"
 	"io"
 	"math/rand"
 	"testing"
@@ -172,5 +173,43 @@ func TestBStreamWriteAndReadBits(t *testing.T) {
 		if newBS.stream[i] != bs.stream[i] {
 
 		}
+	}
+}
+
+func TestBStreamWriteAndReadDuration(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
+	ts := (24*time.Hour - time.Duration(5+rand.Int63n(1000))*time.Millisecond) / time.Millisecond
+
+	positive := int32(ts)
+	binPos := fmt.Sprintf("%b", positive)
+
+	negative := -positive
+	binNeg := fmt.Sprintf("%b", negative)
+
+	if len(binPos) > 28 || len(binNeg) > 28 {
+		t.Fatalf("got bit size %d, %d", len(binPos), len(binNeg))
+	}
+
+	bs := newBStream(5)
+	bs.writeBits(uint64(zigzag(positive)), 28)
+	bs.writeBits(uint64(zigzag(negative)), 28)
+
+	pos, err := bs.readBits(28)
+	if err != nil {
+		t.Fatalf("got err when read positive value: %s", err)
+	}
+
+	if repos := zagzig(uint32(pos)); repos != positive {
+		t.Errorf("expcted positive %d, got %d", positive, repos)
+	}
+
+	neg, err := bs.readBits(28)
+	if err != nil {
+		t.Fatalf("got err when read neg value: %s", err)
+	}
+
+	if reneg := zagzig(uint32(neg)); reneg != negative {
+		t.Errorf("expcted negative %d, got %d", negative, reneg)
 	}
 }

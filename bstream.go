@@ -20,8 +20,12 @@ const (
 )
 
 func newBStream(capacity int) *bstream {
+	return newBStreamWithData(make([]byte, 0, capacity))
+}
+
+func newBStreamWithData(data []byte) *bstream {
 	return &bstream{
-		stream: make([]byte, 0, capacity),
+		stream: data,
 		wBit:   0,
 		rIdx:   0,
 		rBit:   8,
@@ -33,6 +37,22 @@ type bstream struct {
 	wBit   uint8
 	rIdx   int
 	rBit   uint8
+}
+
+func (bs *bstream) clone() *bstream {
+	stream := make([]byte, len(bs.stream))
+	copy(stream, bs.stream)
+	return &bstream{
+		stream: stream,
+		wBit:   bs.wBit,
+		rIdx:   bs.rIdx,
+		rBit:   bs.rBit,
+	}
+}
+
+func (bs *bstream) rewind() {
+	bs.rIdx = 0
+	bs.rBit = 8
 }
 
 func (bs *bstream) writeBit(bit bit) {
@@ -90,10 +110,6 @@ func (bs *bstream) readBit() (bit, error) {
 		return false, err
 	}
 
-	if bs.rIdx == len(bs.stream) && bs.rBit == 0 {
-		return false, io.EOF
-	}
-
 	if bs.rBit == 0 {
 		bs.rIdx++
 		if bs.rIdx == len(bs.stream) {
@@ -112,10 +128,6 @@ func (bs *bstream) readBit() (bit, error) {
 func (bs *bstream) readByte() (byte, error) {
 	if err := bs.checkReadBitSize(); err != nil {
 		return 0, err
-	}
-
-	if bs.rIdx == len(bs.stream) {
-		return 0, io.EOF
 	}
 
 	if bs.rBit == 0 {
