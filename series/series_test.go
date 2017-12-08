@@ -58,7 +58,7 @@ func TestMilliSeriesAndIter(t *testing.T) {
 	points := make([]struct {
 		t   time.Time
 		val uint64
-	}, 2000000)
+	}, 1000000)
 
 	for i := range points {
 		n := uint(4 + i%20)
