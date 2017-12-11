@@ -415,6 +415,11 @@ func (i *Iter) Next() bool {
 	return true
 }
 
+// Total total points
+func (i *Iter) Total() uint64 {
+	return i.num
+}
+
 // Err return last error
 func (i *Iter) Err() error {
 	return i.err
