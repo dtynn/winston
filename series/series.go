@@ -201,6 +201,17 @@ func (s *Series) Push(t int64, vbits uint64) {
 	s.prevVBits = vbits
 }
 
+// Bytes return stream data
+func (s *Series) Bytes() []byte {
+	s.Lock()
+	bs := s.bs.clone()
+	s.Unlock()
+
+	finish(bs, s.precision)
+
+	return bs.stream
+}
+
 // Iter return an iterator
 func (s *Series) Iter() (*Iter, error) {
 	s.Lock()
