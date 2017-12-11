@@ -188,3 +188,29 @@ func BenchmarkSeriesPush(b *testing.B) {
 		ts.PushTime(tm, uint64(6+rand.Int63n(14)))
 	}
 }
+
+func BenchmarkSeriesIterRead(b *testing.B) {
+	b.StopTimer()
+	baseT := time.Now()
+	tm := baseT.Add(time.Hour)
+
+	ts := NewMilliSeries(baseT.Truncate(24 * time.Hour))
+
+	for i := 0; i < b.N; i++ {
+		tm = tm.Add(time.Duration(350+rand.Int63n(300)) * time.Millisecond)
+		ts.PushTime(tm, uint64(6+rand.Int63n(14)))
+	}
+
+	iter, err := ts.Iter()
+	if err != nil {
+		b.Fatalf("get iter %s", err)
+	}
+
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		if !iter.Next() {
+			b.Fatalf("read through all points at benchmark loop %d", b.N)
+		}
+	}
+}
