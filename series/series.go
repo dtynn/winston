@@ -34,7 +34,7 @@ func NewMilliSeries(t time.Time) *Series {
 
 func newSeries(t time.Time, precision time.Duration) *Series {
 	s := &Series{
-		t0:                t,
+		t0:                t.UnixNano() / int64(precision),
 		bs:                newBStream(10240),
 		leading:           defaultLeading,
 		precision:         precision,
@@ -43,7 +43,7 @@ func newSeries(t time.Time, precision time.Duration) *Series {
 
 	// placeholder for point num
 	s.bs.writeBits(0, 64)
-	s.bs.writeBits(uint64(s.t0.UnixNano()), 64)
+	s.bs.writeBits(uint64(s.t0), 64)
 	return s
 }
 
@@ -54,8 +54,8 @@ type Series struct {
 	precision time.Duration
 	precisionSettings
 
-	t0        time.Time
-	prevT     time.Time
+	t0        int64
+	prevT     int64
 	tdelta    int32
 	prevVBits uint64
 
@@ -89,20 +89,23 @@ func (s *Series) Finish() {
 	s.Unlock()
 }
 
+// PushTime push time.Time and value bits
+func (s *Series) PushTime(t time.Time, vbits uint64) {
+	s.Push(t.UnixNano()/int64(s.precision), vbits)
+}
+
 // Push push timestamp and value bits
-func (s *Series) Push(t time.Time, vbits uint64) {
+func (s *Series) Push(t int64, vbits uint64) {
 	s.Lock()
 	defer s.Unlock()
 
 	s.num++
 	binary.BigEndian.PutUint64(s.bs.stream[:8], s.num)
 
-	t = t.Truncate(s.precision)
-
-	if s.prevT.IsZero() {
+	if s.prevT == 0 {
 		s.prevT = t
 		s.prevVBits = vbits
-		s.tdelta = int32(t.Sub(s.t0) / s.precision)
+		s.tdelta = int32(t - s.t0)
 
 		// with one-day block, and precision of millisecond, we need at most 28 bits
 		s.bs.writeBits(uint64(zigzag(s.tdelta)), 28)
@@ -111,7 +114,7 @@ func (s *Series) Push(t time.Time, vbits uint64) {
 	}
 
 	// deal with delta-of-delta of timestamp
-	tdelta := int32(t.Sub(s.prevT) / s.precision)
+	tdelta := int32(t - s.prevT)
 	// delta-of-delta
 	dod := tdelta - s.tdelta
 	var dodCtrlBits uint64
@@ -227,7 +230,7 @@ func bstreamIter(bs *bstream, precision time.Duration) (*Iter, error) {
 	}
 
 	it := &Iter{
-		t0:                time.Unix(0, int64(t0bits)),
+		t0:                int64(t0bits),
 		bs:                bs,
 		precision:         precision,
 		precisionSettings: precSettings,
@@ -251,8 +254,8 @@ type Iter struct {
 	precision time.Duration
 	precisionSettings
 
-	t0     time.Time
-	t      time.Time
+	t0     int64
+	t      int64
 	tdelta int32
 	vbits  uint64
 
@@ -286,7 +289,7 @@ func (i *Iter) Next() bool {
 		return false
 	}
 
-	if i.t.IsZero() {
+	if i.t == 0 {
 		tdeltabits, err := i.bs.readBits(28)
 		if err != nil {
 			i.err = fmt.Errorf("read first tdelta: %s", err)
@@ -300,7 +303,7 @@ func (i *Iter) Next() bool {
 		}
 
 		i.tdelta = zagzig(uint32(tdeltabits))
-		i.t = newTime(i.t0, i.tdelta, i.precision)
+		i.t = i.t0 + int64(i.tdelta)
 		i.vbits = vbits
 
 		if i.pointStat {
@@ -352,7 +355,7 @@ func (i *Iter) Next() bool {
 	}
 
 	i.tdelta += dod
-	i.t = newTime(i.t, i.tdelta, i.precision)
+	i.t = i.t + int64(i.tdelta)
 
 	valCtrlBits, err := readValueControlBits(i.bs)
 	if err != nil {
@@ -426,8 +429,13 @@ func (i *Iter) Err() error {
 }
 
 // Point return current point
-func (i *Iter) Point() (time.Time, uint64) {
+func (i *Iter) Point() (int64, uint64) {
 	return i.t, i.vbits
+}
+
+// PointTime return point time from timestamp
+func (i *Iter) PointTime(ts int64) time.Time {
+	return time.Unix(0, ts*int64(i.precision))
 }
 
 func newTime(old time.Time, tdelta int32, precision time.Duration) time.Time {

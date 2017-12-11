@@ -72,7 +72,7 @@ func TestMilliSeriesAndIter(t *testing.T) {
 	ts := NewMilliSeries(baseT.Truncate(24 * time.Hour))
 
 	for i := range points {
-		ts.Push(points[i].t, points[i].val)
+		ts.PushTime(points[i].t, points[i].val)
 	}
 
 	iter, err := ts.Iter()
@@ -94,8 +94,9 @@ func TestMilliSeriesAndIter(t *testing.T) {
 
 		pt, pv := iter.Point()
 		expectedT := points[i].t.Truncate(time.Millisecond)
-		if pt != expectedT {
-			t.Fatalf("#%d expected point time %s, got %s", i+1, expectedT, pt)
+		gotT := iter.PointTime(pt)
+		if gotT != expectedT {
+			t.Fatalf("#%d expected point time %s, got %s", i+1, expectedT, gotT)
 		}
 
 		if pv != points[i].val {
@@ -134,7 +135,7 @@ func TestSeriesAndIter(t *testing.T) {
 	ts := NewSeries(baseT.Truncate(24 * time.Hour))
 
 	for i := range points {
-		ts.Push(points[i].t, points[i].val)
+		ts.PushTime(points[i].t, points[i].val)
 	}
 
 	iter, err := ts.Iter()
@@ -156,8 +157,9 @@ func TestSeriesAndIter(t *testing.T) {
 
 		pt, pv := iter.Point()
 		expectedT := points[i].t.Truncate(time.Second)
-		if pt != expectedT {
-			t.Fatalf("#%d expected point time %s, got %s", i+1, expectedT, pt)
+		gotT := iter.PointTime(pt)
+		if gotT != expectedT {
+			t.Fatalf("#%d expected point time %s, got %s", i+1, expectedT, gotT)
 		}
 
 		if pv != points[i].val {
@@ -183,6 +185,6 @@ func BenchmarkSeriesPush(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		tm = tm.Add(time.Duration(350+rand.Int63n(300)) * time.Millisecond)
-		ts.Push(tm, uint64(6+rand.Int63n(14)))
+		ts.PushTime(tm, uint64(6+rand.Int63n(14)))
 	}
 }
