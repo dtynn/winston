@@ -1,11 +1,11 @@
 package series
 
 import (
+	"encoding/binary"
 	"fmt"
+	"math/bits"
 	"sync"
 	"time"
-
-	"github.com/dgryski/go-bits"
 )
 
 const (
@@ -41,6 +41,8 @@ func newSeries(t time.Time, precision time.Duration) *Series {
 		precisionSettings: precisions[precision],
 	}
 
+	// placeholder for point num
+	s.bs.writeBits(0, 64)
 	s.bs.writeBits(uint64(s.t0.UnixNano()), 64)
 	return s
 }
@@ -62,6 +64,8 @@ type Series struct {
 	trailing uint8
 
 	finished bool
+
+	num uint64
 
 	err error
 }
@@ -90,12 +94,16 @@ func (s *Series) Push(t time.Time, vbits uint64) {
 	s.Lock()
 	defer s.Unlock()
 
+	s.num++
+	binary.BigEndian.PutUint64(s.bs.stream[:8], s.num)
+
 	t = t.Truncate(s.precision)
 
 	if s.prevT.IsZero() {
 		s.prevT = t
 		s.prevVBits = vbits
 		s.tdelta = int32(t.Sub(s.t0) / s.precision)
+
 		// with one-day block, and precision of millisecond, we need at most 28 bits
 		s.bs.writeBits(uint64(zigzag(s.tdelta)), 28)
 		s.bs.writeBits(s.prevVBits, 64)
@@ -165,8 +173,8 @@ func (s *Series) Push(t time.Time, vbits uint64) {
 		//           6 bits. Finally store the meaningful bits of the
 		//           XORed value.
 
-		leading := uint8(bits.Clz(vdelta))
-		trailing := uint8(bits.Ctz(vdelta))
+		leading := uint8(bits.LeadingZeros64(vdelta))
+		trailing := uint8(bits.TrailingZeros64(vdelta))
 
 		// leading has been set and for the meaningful bit, previous size >= current size
 		if s.leading != defaultLeading && leading >= s.leading && trailing >= s.trailing {
@@ -208,6 +216,11 @@ func bstreamIter(bs *bstream, precision time.Duration) (*Iter, error) {
 		return nil, fmt.Errorf("unsupport precision %s", precision)
 	}
 
+	_, err := bs.readBits(64)
+	if err != nil {
+		return nil, err
+	}
+
 	t0bits, err := bs.readBits(64)
 	if err != nil {
 		return nil, err
@@ -218,6 +231,7 @@ func bstreamIter(bs *bstream, precision time.Duration) (*Iter, error) {
 		bs:                bs,
 		precision:         precision,
 		precisionSettings: precSettings,
+		num:               binary.BigEndian.Uint64(bs.stream[:8]),
 	}
 
 	it.Stat.dod = map[uint64]int{}
@@ -255,6 +269,8 @@ type Iter struct {
 		dod    map[uint64]int
 		vdelta map[uint64]int
 	}
+
+	num uint64
 
 	err error
 }

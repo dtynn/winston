@@ -52,13 +52,15 @@ func TestReadDodControlBits(t *testing.T) {
 }
 
 func TestMilliSeriesAndIter(t *testing.T) {
+	var pointNum uint64 = 1000000
+
 	baseT := time.Now()
 	ti := baseT.Add(time.Hour)
 
 	points := make([]struct {
 		t   time.Time
 		val uint64
-	}, 1000000)
+	}, pointNum)
 
 	for i := range points {
 		n := uint(4 + i%20)
@@ -76,6 +78,10 @@ func TestMilliSeriesAndIter(t *testing.T) {
 	iter, err := ts.Iter()
 	if err != nil {
 		t.Fatalf("new iterator: %s", err)
+	}
+
+	if iter.num != pointNum {
+		t.Fatalf("expected total points num %d, got %d", pointNum, iter.num)
 	}
 
 	iter.PointStat(true)
@@ -108,13 +114,15 @@ func TestMilliSeriesAndIter(t *testing.T) {
 }
 
 func TestSeriesAndIter(t *testing.T) {
+	var pointNum uint64 = 1000000
+
 	baseT := time.Now()
 	ti := baseT.Add(time.Hour)
 
 	points := make([]struct {
 		t   time.Time
 		val uint64
-	}, 1000000)
+	}, pointNum)
 
 	for i := range points {
 		n := uint(4 + i%10)
@@ -132,6 +140,10 @@ func TestSeriesAndIter(t *testing.T) {
 	iter, err := ts.Iter()
 	if err != nil {
 		t.Fatalf("new iterator: %s", err)
+	}
+
+	if iter.num != pointNum {
+		t.Fatalf("expected total points num %d, got %d", pointNum, iter.num)
 	}
 
 	iter.PointStat(true)
