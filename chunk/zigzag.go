@@ -1,4 +1,4 @@
-package series
+package chunk
 
 func zigzag(i int32) uint32 {
 	ui := uint32(i << 1)

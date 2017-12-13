@@ -1,6 +1,7 @@
-package series
+package chunk
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"math/bits"
@@ -199,15 +200,118 @@ func (c *Chunk) Push(t int64, vbits uint64) {
 	c.prevVBits = vbits
 }
 
-// Bytes return stream data
-func (c *Chunk) Bytes() []byte {
-	c.Lock()
-	bs := c.bs.clone()
-	c.Unlock()
+// MarshalBinary impl encoding.BinaryMarshaler
+func (c *Chunk) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
 
-	finish(bs, c.precision)
+	if err := bwrite(buf, c.precision); err != nil {
+		return nil, err
+	}
 
-	return bs.stream
+	if err := bwrite(buf, c.t0); err != nil {
+		return nil, err
+	}
+
+	if err := bwrite(buf, c.prevT); err != nil {
+		return nil, err
+	}
+
+	if err := bwrite(buf, c.tdelta); err != nil {
+		return nil, err
+	}
+
+	if err := bwrite(buf, c.prevVBits); err != nil {
+		return nil, err
+	}
+
+	if err := bwrite(buf, c.leading); err != nil {
+		return nil, err
+	}
+
+	if err := bwrite(buf, c.leading); err != nil {
+		return nil, err
+	}
+
+	if err := bwrite(buf, c.finished); err != nil {
+		return nil, err
+	}
+
+	if err := bwrite(buf, c.num); err != nil {
+		return nil, err
+	}
+
+	bsdata, err := c.bs.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := bwrite(buf, bsdata); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary impl encoding.BinaryUnmarshaler
+func (c *Chunk) UnmarshalBinary(buf []byte) error {
+	r := bytes.NewBuffer(buf)
+
+	var prec int64
+
+	if err := bread(r, &prec); err != nil {
+		return err
+	}
+
+	c.precision = time.Duration(prec)
+	settings, ok := precisions[c.precision]
+	if !ok {
+		return fmt.Errorf("malformed precision %s", c.precision)
+	}
+	c.precisionSettings = settings
+
+	if err := bread(r, &c.t0); err != nil {
+		return err
+	}
+
+	if err := bread(r, &c.prevT); err != nil {
+		return err
+	}
+
+	if err := bread(r, &c.tdelta); err != nil {
+		return err
+	}
+
+	if err := bread(r, &c.prevVBits); err != nil {
+		return err
+	}
+
+	if err := bread(r, &c.leading); err != nil {
+		return err
+	}
+
+	if err := bread(r, &c.leading); err != nil {
+		return err
+	}
+
+	if err := bread(r, &c.finished); err != nil {
+		return err
+	}
+
+	if err := bread(r, &c.num); err != nil {
+		return err
+	}
+
+	bsdata := make([]byte, r.Len())
+	if err := bread(r, &bsdata); err != nil {
+		return err
+	}
+
+	c.bs = new(bstream)
+	if err := c.bs.UnmarshalBinary(bsdata); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Iter return an iterator

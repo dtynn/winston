@@ -1,9 +1,8 @@
-package series
+package chunk
 
 import (
 	"bytes"
 	"encoding"
-	"encoding/binary"
 	"io"
 )
 
@@ -180,19 +179,19 @@ func (bs *bstream) readBits(nbits uint) (uint64, error) {
 // MarshalBinary impl encoding.BinaryMarshaler
 func (bs *bstream) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.BigEndian, bs.wBit); err != nil {
+	if err := bwrite(buf, bs.wBit); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(buf, binary.BigEndian, int64(bs.rIdx)); err != nil {
+	if err := bwrite(buf, int64(bs.rIdx)); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(buf, binary.BigEndian, bs.rBit); err != nil {
+	if err := bwrite(buf, bs.rBit); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(buf, binary.BigEndian, bs.stream); err != nil {
+	if err := bwrite(buf, bs.stream); err != nil {
 		return nil, err
 	}
 
@@ -203,22 +202,22 @@ func (bs *bstream) MarshalBinary() ([]byte, error) {
 func (bs *bstream) UnmarshalBinary(b []byte) error {
 	buf := bytes.NewReader(b)
 
-	if err := binary.Read(buf, binary.BigEndian, &bs.wBit); err != nil {
+	if err := bread(buf, &bs.wBit); err != nil {
 		return err
 	}
 
 	var rIdx int64
-	if err := binary.Read(buf, binary.BigEndian, &rIdx); err != nil {
+	if err := bread(buf, &rIdx); err != nil {
 		return err
 	}
 
 	bs.rIdx = int(rIdx)
 
-	if err := binary.Read(buf, binary.BigEndian, &bs.rBit); err != nil {
+	if err := bread(buf, &bs.rBit); err != nil {
 		return err
 	}
 
 	bs.stream = make([]byte, buf.Len())
 
-	return binary.Read(buf, binary.BigEndian, &bs.stream)
+	return bread(buf, &bs.stream)
 }

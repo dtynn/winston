@@ -1,4 +1,4 @@
-package series
+package chunk
 
 import (
 	"math/rand"
@@ -73,6 +73,84 @@ func TestMilliChunkAndIter(t *testing.T) {
 
 	for i := range points {
 		ts.PushTime(points[i].t, points[i].val)
+	}
+
+	iter, err := ts.Iter()
+	if err != nil {
+		t.Fatalf("new iterator: %s", err)
+	}
+
+	if iter.num != pointNum {
+		t.Fatalf("expected total points num %d, got %d", pointNum, iter.num)
+	}
+
+	iter.PointStat(true)
+
+	i := 0
+	for {
+		if !iter.Next() {
+			break
+		}
+
+		pt, pv := iter.Point()
+		expectedT := points[i].t.Truncate(time.Millisecond)
+		gotT := iter.PointTime(pt)
+		if gotT != expectedT {
+			t.Fatalf("#%d expected point time %s, got %s", i+1, expectedT, gotT)
+		}
+
+		if pv != points[i].val {
+			t.Fatalf("#%d expected point val %d, got %d", i+1, points[i].val, pv)
+		}
+
+		i++
+	}
+
+	if i != len(points) {
+		t.Fatalf("expected %d points, got %d", len(points), i)
+	}
+
+	t.Logf("expected %d Bytes, got %d Bytes", len(points)*16, len(ts.bs.stream))
+	t.Logf("point stat %v", iter.Stat)
+}
+
+func TestMilliChunkAndIterWithMarshaling(t *testing.T) {
+	var pointNum uint64 = 1000000
+	half := pointNum / 2
+
+	baseT := time.Now()
+	ti := baseT.Add(time.Hour)
+
+	points := make([]struct {
+		t   time.Time
+		val uint64
+	}, pointNum)
+
+	for i := range points {
+		n := uint(4 + i%20)
+		ti = ti.Add(time.Duration(rand.Int31n(1<<n)) * time.Millisecond)
+		points[i].t = ti
+		points[i].val = uint64(6 + rand.Int63n(14))
+	}
+
+	ts := NewMilliChunk(baseT.Truncate(24 * time.Hour))
+
+	for i := range points {
+		ts.PushTime(points[i].t, points[i].val)
+
+		if uint64(i) == half {
+			data, err := ts.MarshalBinary()
+			if err != nil {
+				t.Fatalf("marshal binary %s", err)
+			}
+
+			ck := new(Chunk)
+			if err := ck.UnmarshalBinary(data); err != nil {
+				t.Fatalf("unmarshal binary %s", err)
+			}
+
+			ts = ck
+		}
 	}
 
 	iter, err := ts.Iter()

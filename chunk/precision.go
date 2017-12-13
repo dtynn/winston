@@ -1,4 +1,4 @@
-package series
+package chunk
 
 import (
 	"math"
