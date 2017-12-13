@@ -307,11 +307,8 @@ func (c *Chunk) UnmarshalBinary(buf []byte) error {
 	}
 
 	c.bs = new(bstream)
-	if err := c.bs.UnmarshalBinary(bsdata); err != nil {
-		return err
-	}
 
-	return nil
+	return c.bs.UnmarshalBinary(bsdata)
 }
 
 // Iter return an iterator
