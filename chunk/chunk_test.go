@@ -51,7 +51,7 @@ func TestReadDodControlBits(t *testing.T) {
 	}
 }
 
-func TestMilliSeriesAndIter(t *testing.T) {
+func TestMilliChunkAndIter(t *testing.T) {
 	var pointNum uint64 = 1000000
 
 	baseT := time.Now()
@@ -69,7 +69,7 @@ func TestMilliSeriesAndIter(t *testing.T) {
 		points[i].val = uint64(6 + rand.Int63n(14))
 	}
 
-	ts := NewMilliSeries(baseT.Truncate(24 * time.Hour))
+	ts := NewMilliChunk(baseT.Truncate(24 * time.Hour))
 
 	for i := range points {
 		ts.PushTime(points[i].t, points[i].val)
@@ -114,7 +114,7 @@ func TestMilliSeriesAndIter(t *testing.T) {
 	t.Logf("point stat %v", iter.Stat)
 }
 
-func TestSeriesAndIter(t *testing.T) {
+func TestChunkAndIter(t *testing.T) {
 	var pointNum uint64 = 1000000
 
 	baseT := time.Now()
@@ -132,7 +132,7 @@ func TestSeriesAndIter(t *testing.T) {
 		points[i].val = uint64(6 + rand.Int63n(14))
 	}
 
-	ts := NewSeries(baseT.Truncate(24 * time.Hour))
+	ts := NewChunk(baseT.Truncate(24 * time.Hour))
 
 	for i := range points {
 		ts.PushTime(points[i].t, points[i].val)
@@ -177,11 +177,11 @@ func TestSeriesAndIter(t *testing.T) {
 	t.Logf("point stat %v", iter.Stat)
 }
 
-func BenchmarkSeriesPush(b *testing.B) {
+func BenchmarkChunkPush(b *testing.B) {
 	baseT := time.Now()
 	tm := baseT.Add(time.Hour)
 
-	ts := NewMilliSeries(baseT.Truncate(24 * time.Hour))
+	ts := NewMilliChunk(baseT.Truncate(24 * time.Hour))
 
 	for i := 0; i < b.N; i++ {
 		tm = tm.Add(time.Duration(350+rand.Int63n(300)) * time.Millisecond)
@@ -189,12 +189,12 @@ func BenchmarkSeriesPush(b *testing.B) {
 	}
 }
 
-func BenchmarkSeriesIterRead(b *testing.B) {
+func BenchmarkChunkIterRead(b *testing.B) {
 	b.StopTimer()
 	baseT := time.Now()
 	tm := baseT.Add(time.Hour)
 
-	ts := NewMilliSeries(baseT.Truncate(24 * time.Hour))
+	ts := NewMilliChunk(baseT.Truncate(24 * time.Hour))
 
 	for i := 0; i < b.N; i++ {
 		tm = tm.Add(time.Duration(350+rand.Int63n(300)) * time.Millisecond)

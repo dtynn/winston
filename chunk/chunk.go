@@ -22,18 +22,18 @@ const (
 	valueControlBits11        = 0x03
 )
 
-// NewSeries return new series with second precision
-func NewSeries(t time.Time) *Series {
-	return newSeries(t, time.Second)
+// NewChunk return new series with second precision
+func NewChunk(t time.Time) *Chunk {
+	return newChunk(t, time.Second)
 }
 
-// NewMilliSeries return new series with millisecond precision
-func NewMilliSeries(t time.Time) *Series {
-	return newSeries(t, time.Millisecond)
+// NewMilliChunk return new series with millisecond precision
+func NewMilliChunk(t time.Time) *Chunk {
+	return newChunk(t, time.Millisecond)
 }
 
-func newSeries(t time.Time, precision time.Duration) *Series {
-	s := &Series{
+func newChunk(t time.Time, precision time.Duration) *Chunk {
+	c := &Chunk{
 		t0:                t.UnixNano() / int64(precision),
 		bs:                newBStream(10240),
 		leading:           defaultLeading,
@@ -42,13 +42,13 @@ func newSeries(t time.Time, precision time.Duration) *Series {
 	}
 
 	// placeholder for point num
-	s.bs.writeBits(0, 64)
-	s.bs.writeBits(uint64(s.t0), 64)
-	return s
+	c.bs.writeBits(0, 64)
+	c.bs.writeBits(uint64(c.t0), 64)
+	return c
 }
 
-// Series time series
-type Series struct {
+// Chunk time series
+type Chunk struct {
 	sync.RWMutex
 
 	precision time.Duration
@@ -66,8 +66,6 @@ type Series struct {
 	finished bool
 
 	num uint64
-
-	err error
 }
 
 func finish(bs *bstream, precision time.Duration) {
@@ -78,45 +76,45 @@ func finish(bs *bstream, precision time.Duration) {
 }
 
 // Finish finish a stream
-func (s *Series) Finish() {
-	s.Lock()
+func (c *Chunk) Finish() {
+	c.Lock()
 
-	if !s.finished {
-		finish(s.bs, s.precision)
-		s.finished = true
+	if !c.finished {
+		finish(c.bs, c.precision)
+		c.finished = true
 	}
 
-	s.Unlock()
+	c.Unlock()
 }
 
 // PushTime push time.Time and value bits
-func (s *Series) PushTime(t time.Time, vbits uint64) {
-	s.Push(t.UnixNano()/int64(s.precision), vbits)
+func (c *Chunk) PushTime(t time.Time, vbits uint64) {
+	c.Push(t.UnixNano()/int64(c.precision), vbits)
 }
 
 // Push push timestamp and value bits
-func (s *Series) Push(t int64, vbits uint64) {
-	s.Lock()
-	defer s.Unlock()
+func (c *Chunk) Push(t int64, vbits uint64) {
+	c.Lock()
+	defer c.Unlock()
 
-	s.num++
-	binary.BigEndian.PutUint64(s.bs.stream[:8], s.num)
+	c.num++
+	binary.BigEndian.PutUint64(c.bs.stream[:8], c.num)
 
-	if s.prevT == 0 {
-		s.prevT = t
-		s.prevVBits = vbits
-		s.tdelta = int32(t - s.t0)
+	if c.prevT == 0 {
+		c.prevT = t
+		c.prevVBits = vbits
+		c.tdelta = int32(t - c.t0)
 
 		// with one-day block, and precision of millisecond, we need at most 28 bits
-		s.bs.writeBits(uint64(zigzag(s.tdelta)), 28)
-		s.bs.writeBits(s.prevVBits, 64)
+		c.bs.writeBits(uint64(zigzag(c.tdelta)), 28)
+		c.bs.writeBits(c.prevVBits, 64)
 		return
 	}
 
 	// deal with delta-of-delta of timestamp
-	tdelta := int32(t - s.prevT)
+	tdelta := int32(t - c.prevT)
 	// delta-of-delta
-	dod := tdelta - s.tdelta
+	dod := tdelta - c.tdelta
 	var dodCtrlBits uint64
 
 	// in the paper of facebook's gorilla,
@@ -128,38 +126,38 @@ func (s *Series) Push(t int64, vbits uint64) {
 	switch {
 	case dod == 0:
 		// '0'
-		s.bs.writeBit(zero)
+		c.bs.writeBit(zero)
 
-	case inRange(dod, s.precisionSettings.dod[dodControlBits10].dodRange):
+	case inRange(dod, c.precisionSettings.dod[dodControlBits10].dodRange):
 
 		dodCtrlBits = dodControlBits10
-		s.bs.writeBits(dodControlBits10, 2)
+		c.bs.writeBits(dodControlBits10, 2)
 
-	case inRange(dod, s.precisionSettings.dod[dodControlBits10].dodRange):
+	case inRange(dod, c.precisionSettings.dod[dodControlBits10].dodRange):
 
 		dodCtrlBits = dodControlBits110
-		s.bs.writeBits(dodControlBits110, 3)
+		c.bs.writeBits(dodControlBits110, 3)
 
-	case inRange(dod, s.precisionSettings.dod[dodControlBits1110].dodRange):
+	case inRange(dod, c.precisionSettings.dod[dodControlBits1110].dodRange):
 
 		dodCtrlBits = dodControlBits1110
-		s.bs.writeBits(dodControlBits1110, 4)
+		c.bs.writeBits(dodControlBits1110, 4)
 
 	default:
 		// '1111' & 28 bit value
 		dodCtrlBits = dodControlBits1111
-		s.bs.writeBits(dodControlBits1111, 4)
+		c.bs.writeBits(dodControlBits1111, 4)
 	}
 
 	if dodCtrlBits > 0 {
-		s.bs.writeBits(uint64(zigzag(dod)), s.precisionSettings.dod[dodCtrlBits].dodNBits)
+		c.bs.writeBits(uint64(zigzag(dod)), c.precisionSettings.dod[dodCtrlBits].dodNBits)
 	}
 
-	vdelta := vbits ^ s.prevVBits
+	vdelta := vbits ^ c.prevVBits
 	if vdelta == 0 {
-		s.bs.writeBit(zero)
+		c.bs.writeBit(zero)
 	} else {
-		s.bs.writeBit(one)
+		c.bs.writeBit(one)
 
 		// When XOR is non-zero, calculate the number of leading
 		// and trailing zeros in the XOR, store bit ‘1’ followed
@@ -180,48 +178,48 @@ func (s *Series) Push(t int64, vbits uint64) {
 		trailing := uint8(bits.TrailingZeros64(vdelta))
 
 		// leading has been set and for the meaningful bit, previous size >= current size
-		if s.leading != defaultLeading && leading >= s.leading && trailing >= s.trailing {
-			s.bs.writeBit(zero)
-			s.bs.writeBits(vdelta>>s.trailing, uint(64-s.leading-s.trailing))
+		if c.leading != defaultLeading && leading >= c.leading && trailing >= c.trailing {
+			c.bs.writeBit(zero)
+			c.bs.writeBits(vdelta>>c.trailing, uint(64-c.leading-c.trailing))
 		} else {
-			s.leading, s.trailing = leading, trailing
+			c.leading, c.trailing = leading, trailing
 
-			s.bs.writeBit(one)
+			c.bs.writeBit(one)
 			// we use 6 bit for storing leading size to support at most 63 bit leading zeros
-			s.bs.writeBits(uint64(leading), 6)
+			c.bs.writeBits(uint64(leading), 6)
 
 			meaningfulBits := 64 - leading - trailing
-			s.bs.writeBits(uint64(meaningfulBits), 6)
-			s.bs.writeBits(vdelta>>trailing, uint(meaningfulBits))
+			c.bs.writeBits(uint64(meaningfulBits), 6)
+			c.bs.writeBits(vdelta>>trailing, uint(meaningfulBits))
 		}
 	}
 
-	s.prevT = t
-	s.tdelta = tdelta
-	s.prevVBits = vbits
+	c.prevT = t
+	c.tdelta = tdelta
+	c.prevVBits = vbits
 }
 
 // Bytes return stream data
-func (s *Series) Bytes() []byte {
-	s.Lock()
-	bs := s.bs.clone()
-	s.Unlock()
+func (c *Chunk) Bytes() []byte {
+	c.Lock()
+	bs := c.bs.clone()
+	c.Unlock()
 
-	finish(bs, s.precision)
+	finish(bs, c.precision)
 
 	return bs.stream
 }
 
 // Iter return an iterator
-func (s *Series) Iter() (*Iter, error) {
-	s.Lock()
-	bs := s.bs.clone()
-	s.Unlock()
+func (c *Chunk) Iter() (*Iter, error) {
+	c.Lock()
+	bs := c.bs.clone()
+	c.Unlock()
 
-	finish(bs, s.precision)
+	finish(bs, c.precision)
 	bs.rewind()
 
-	return bstreamIter(bs, s.precision)
+	return bstreamIter(bs, c.precision)
 }
 
 func bstreamIter(bs *bstream, precision time.Duration) (*Iter, error) {
