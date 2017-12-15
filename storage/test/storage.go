@@ -7,222 +7,99 @@ import (
 	"github.com/dtynn/winston/storage"
 )
 
-// StoragePut test case for key put
-func StoragePut(t *testing.T, s storage.Storage) {
-	cases := []struct {
-		key string
-		val string
-	}{
-		{
-			key: "a",
-			val: "vala",
-		},
-		{
-			key: "b",
-			val: "valb",
-		},
-		{
-			key: "c",
-			val: "valc",
-		},
-		{
-			key: "d",
-			val: "vald",
-		},
-		{
-			key: "e",
-			val: "vale",
-		},
-	}
-
-	mgetKeys := make([][]byte, len(cases))
-	mgetVals := make([][]byte, len(cases))
-
-	for i, c := range cases {
-		if err := s.Put([]byte(c.key), []byte(c.val)); err != nil {
-			t.Errorf("#%d put: %s", i+1, err)
-			return
-		}
-
-		mgetKeys[i] = []byte(c.key)
-		mgetVals[i] = []byte(c.val)
-	}
-
-	for i, c := range cases {
-		got, err := s.Get([]byte(c.key))
-		if err != nil {
-			t.Errorf("#%d get: %s", i+1, err)
-			return
-		}
-
-		if s := string(got); s != c.val {
-			t.Errorf("#%d expected %s, got %s", i+1, c.val, s)
-		}
-	}
-
-	mvals, err := s.MGet(mgetKeys...)
-	if err != nil {
-		t.Errorf("mget %s", err)
-		return
-	}
-
-	if !reflect.DeepEqual(mgetVals, mvals) {
-		t.Errorf("unexpected mget vals")
-		return
-	}
-}
-
 // StorageUpdate test case for key update
 func StorageUpdate(t *testing.T, s storage.Storage) {
 	cases := []struct {
-		key  string
-		val1 string
-		val2 string
+		key  []byte
+		val1 []byte
+		val2 []byte
 	}{
 		{
-			key:  "a",
-			val1: "vala1",
-			val2: "vala2",
+			key:  []byte("a"),
+			val1: []byte("vala1"),
+			val2: []byte("vala2"),
 		},
 		{
-			key:  "b",
-			val1: "valb1",
-			val2: "valb2",
+			key:  []byte("b"),
+			val1: []byte("valb1"),
+			val2: nil,
 		},
 		{
-			key:  "c",
-			val1: "valc1",
-			val2: "valc2",
+			key:  []byte("c"),
+			val1: []byte("valc1"),
+			val2: []byte("valc2"),
 		},
 		{
-			key:  "d",
-			val1: "vald1",
-			val2: "vald2",
+			key:  []byte("d"),
+			val1: []byte("vald1"),
+			val2: nil,
 		},
 		{
-			key:  "e",
-			val1: "vale1",
-			val2: "vale2",
+			key:  []byte("e"),
+			val1: []byte("vale1"),
+			val2: []byte("vale2"),
 		},
 	}
 
-	for i, c := range cases {
-		if err := s.Put([]byte(c.key), []byte(c.val1)); err != nil {
-			t.Errorf("#%d put val1: %s", i+1, err)
-			return
+	mkeys := make([][]byte, len(cases))
+
+	t.Run("Put", func(t *testing.T) {
+		for i, c := range cases {
+			if err := s.Put(c.key, c.val1); err != nil {
+				t.Errorf("#%d put val1: %s", i+1, err)
+				return
+			}
+
+			mkeys[i] = c.key
 		}
-	}
 
-	for i, c := range cases {
-		got, err := s.Get([]byte(c.key))
+		for i, c := range cases {
+			got, err := s.Get(c.key)
+			if err != nil {
+				t.Errorf("#%d get val1: %s", i+1, err)
+				return
+			}
+
+			if !reflect.DeepEqual(got, c.val1) {
+				t.Errorf("#%d expected val1 %s, got %s", i+1, string(c.val1), string(got))
+			}
+		}
+	})
+
+	t.Run("UpdateAndDel", func(t *testing.T) {
+		for i, c := range cases {
+			if c.val2 != nil {
+				if err := s.Put(c.key, c.val2); err != nil {
+					t.Errorf("#%d put val2: %s", i+1, err)
+					return
+				}
+				continue
+			}
+
+			if err := s.Del(c.key); err != nil {
+				t.Errorf("#%d del: %s", i+1, err)
+				return
+			}
+		}
+	})
+
+	t.Run("MGet", func(t *testing.T) {
+		vals, err := s.MGet(mkeys...)
 		if err != nil {
-			t.Errorf("#%d get val1: %s", i+1, err)
+			t.Errorf("mget %s", err)
 			return
 		}
 
-		if s := string(got); s != c.val1 {
-			t.Errorf("#%d expected val1 %s, got %s", i+1, c.val1, s)
-		}
-	}
-
-	for i, c := range cases {
-		if err := s.Put([]byte(c.key), []byte(c.val2)); err != nil {
-			t.Errorf("#%d put val2: %s", i+1, err)
-			return
-		}
-	}
-
-	for i, c := range cases {
-		got, err := s.Get([]byte(c.key))
-		if err != nil {
-			t.Errorf("#%d get val2: %s", i+1, err)
+		if len(vals) != len(cases) {
+			t.Errorf("expected %d values, got %d", len(cases), len(vals))
 			return
 		}
 
-		if s := string(got); s != c.val2 {
-			t.Errorf("#%d expected val2 %s, got %s", i+1, c.val2, s)
+		for i, v := range vals {
+			if !reflect.DeepEqual(v, cases[i].val2) {
+				t.Errorf("#%d expected %v, got %v", i+1, cases[i].val2, v)
+				return
+			}
 		}
-	}
-}
-
-// StorageDel test case for key del
-func StorageDel(t *testing.T, s storage.Storage) {
-	cases := []struct {
-		key string
-		val string
-	}{
-		{
-			key: "a",
-			val: "vala",
-		},
-		{
-			key: "b",
-			val: "valb",
-		},
-		{
-			key: "c",
-			val: "valc",
-		},
-		{
-			key: "d",
-			val: "vald",
-		},
-		{
-			key: "e",
-			val: "vale",
-		},
-	}
-
-	mgetKeys := make([][]byte, len(cases))
-	mgetVals := make([][]byte, len(cases))
-
-	for i, c := range cases {
-		if err := s.Put([]byte(c.key), []byte(c.val)); err != nil {
-			t.Errorf("#%d put: %s", i+1, err)
-			return
-		}
-
-		mgetKeys[i] = []byte(c.key)
-	}
-
-	for i, c := range cases {
-		got, err := s.Get([]byte(c.key))
-		if err != nil {
-			t.Errorf("#%d get: %s", i+1, err)
-			return
-		}
-
-		if s := string(got); s != c.val {
-			t.Errorf("#%d expected %s, got %s", i+1, c.val, s)
-		}
-	}
-
-	for i, c := range cases {
-		if err := s.Del([]byte(c.key)); err != nil {
-			t.Errorf("#%d del: %s", i+1, err)
-			return
-		}
-	}
-
-	for i, c := range cases {
-		got, err := s.Get([]byte(c.key))
-		if err != nil {
-			t.Errorf("#%d get after del: %s", i+1, err)
-			return
-		}
-
-		if got != nil {
-			t.Errorf("#%d expected nil after del, got %s", i+1, s)
-		}
-	}
-
-	mvals, err := s.MGet(mgetKeys...)
-	if err != nil {
-		t.Errorf("mget %s", err)
-		return
-	}
-
-	if !reflect.DeepEqual(mvals, mgetVals) {
-		t.Errorf("unexpected mget vals")
-	}
+	})
 }

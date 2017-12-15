@@ -20,23 +20,9 @@ func teardownTestStorage(s *Storage) {
 	s.cleanup()
 }
 
-func TestGoLeveldbPut(t *testing.T) {
-	s := setupTestStorage(t)
-	defer teardownTestStorage(s)
-
-	test.StoragePut(t, s)
-}
-
 func TestGoLeveldbUpdate(t *testing.T) {
 	s := setupTestStorage(t)
 	defer teardownTestStorage(s)
 
 	test.StorageUpdate(t, s)
-}
-
-func TestGoLeveldbDel(t *testing.T) {
-	s := setupTestStorage(t)
-	defer teardownTestStorage(s)
-
-	test.StorageDel(t, s)
 }
