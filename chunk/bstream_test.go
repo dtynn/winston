@@ -20,14 +20,11 @@ func TestBStreamWriteAndReadBit(t *testing.T) {
 		sets[i].bit = rand.Intn(2) == 1
 	}
 
-	t.Logf("n is %d", n)
 	bs := newBStream(10)
 
 	for _, s := range sets {
 		bs.writeBit(s.bit)
 	}
-
-	t.Logf("%#v", bs.stream)
 
 	for i, s := range sets {
 		b, err := bs.readBit()
@@ -59,7 +56,6 @@ func TestBStreamWriteAndReadByte(t *testing.T) {
 		sets[i].b = byte(rand.Intn(256))
 	}
 
-	t.Logf("n is %d", n)
 	bs := newBStream(50)
 
 	for i := range sets {
@@ -69,8 +65,6 @@ func TestBStreamWriteAndReadByte(t *testing.T) {
 
 		bs.writeByte(sets[i].b)
 	}
-
-	t.Logf("%#v", bs.stream)
 
 	for i := range sets {
 		if i%3 == 0 {
@@ -116,15 +110,11 @@ func TestBStreamWriteAndReadBits(t *testing.T) {
 		sets[i].nbits = 64 - uint(rand.Intn(3))
 	}
 
-	t.Logf("n is %d", n)
-
 	bs := newBStream(50)
 
 	for _, s := range sets {
 		bs.writeBits(s.u, s.nbits)
 	}
-
-	t.Logf("%#v", bs.stream)
 
 	for i, s := range sets {
 		read, err := bs.readBits(s.nbits)

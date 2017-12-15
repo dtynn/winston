@@ -111,7 +111,6 @@ func TestMilliChunkAndIter(t *testing.T) {
 	}
 
 	t.Logf("expected %d Bytes, got %d Bytes", len(points)*16, len(ts.bs.stream))
-	t.Logf("point stat %v", iter.Stat)
 }
 
 func TestMilliChunkAndIterWithMarshaling(t *testing.T) {
@@ -189,7 +188,6 @@ func TestMilliChunkAndIterWithMarshaling(t *testing.T) {
 	}
 
 	t.Logf("expected %d Bytes, got %d Bytes", len(points)*16, len(ts.bs.stream))
-	t.Logf("point stat %v", iter.Stat)
 }
 
 func TestChunkAndIter(t *testing.T) {
@@ -252,7 +250,6 @@ func TestChunkAndIter(t *testing.T) {
 	}
 
 	t.Logf("expected %d Bytes, got %d Bytes", len(points)*16, len(ts.bs.stream))
-	t.Logf("point stat %v", iter.Stat)
 }
 
 func BenchmarkChunkPush(b *testing.B) {
@@ -289,6 +286,58 @@ func BenchmarkChunkIterRead(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		if !iter.Next() {
 			b.Fatalf("read through all points at benchmark loop %d", b.N)
+		}
+	}
+}
+
+func BenchmarkChunkIterRead1KItems(b *testing.B) {
+	baseT := time.Now()
+	tm := baseT.Add(time.Hour)
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		ts := NewMilliChunk(baseT.Truncate(24 * time.Hour))
+
+		for j := 0; j < 1000; j++ {
+			tm = tm.Add(time.Duration(350+rand.Int63n(300)) * time.Millisecond)
+			ts.PushTime(tm, uint64(6+rand.Int63n(14)))
+		}
+
+		iter, err := ts.Iter()
+		if err != nil {
+			b.Fatalf("get iter %s", err)
+		}
+
+		b.StartTimer()
+
+		for iter.Next() {
+
+		}
+	}
+}
+
+func BenchmarkChunkIterRead10MItems(b *testing.B) {
+	baseT := time.Now()
+	tm := baseT.Add(time.Hour)
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		ts := NewMilliChunk(baseT.Truncate(24 * time.Hour))
+
+		for j := 0; j < 10000000; j++ {
+			tm = tm.Add(time.Duration(350+rand.Int63n(300)) * time.Millisecond)
+			ts.PushTime(tm, uint64(6+rand.Int63n(14)))
+		}
+
+		iter, err := ts.Iter()
+		if err != nil {
+			b.Fatalf("get iter %s", err)
+		}
+
+		b.StartTimer()
+
+		for iter.Next() {
+
 		}
 	}
 }
