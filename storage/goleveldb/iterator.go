@@ -20,8 +20,8 @@ func (i *Iterator) Seek(seek []byte) {
 }
 
 // Next move to the next key
-func (i *Iterator) Next() {
-	i.iter.Next()
+func (i *Iterator) Next() bool {
+	return i.iter.Next()
 }
 
 // Key current key of the cursor

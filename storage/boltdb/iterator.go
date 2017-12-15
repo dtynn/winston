@@ -12,24 +12,34 @@ type Iterator struct {
 	key   []byte
 	val   []byte
 	valid bool
+
+	moved bool
 }
 
 // First move to the first entry
 func (i *Iterator) First() {
+	i.moved = true
 	i.key, i.val = i.cur.First()
 	i.valid = i.key != nil
 }
 
 // Seek move to the key equal or greater than seek. If no key exists, return false
 func (i *Iterator) Seek(seek []byte) {
+	i.moved = true
 	i.key, i.val = i.cur.Seek(seek)
 	i.valid = i.key != nil
 }
 
 // Next move to the next key
-func (i *Iterator) Next() {
+func (i *Iterator) Next() bool {
+	if !i.moved {
+		i.First()
+		return i.valid
+	}
+
 	i.key, i.val = i.cur.Next()
 	i.valid = i.key != nil
+	return i.valid
 }
 
 // Key current key of the cursor

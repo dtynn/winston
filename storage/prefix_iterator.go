@@ -23,6 +23,7 @@ func PrefixIterator(prefix []byte, iter ManagedIterator) Iterator {
 type prefixIterator struct {
 	prefix []byte
 	ManagedIterator
+	moved bool
 }
 
 func (p *prefixIterator) checkKeyValid() bool {
@@ -46,11 +47,21 @@ func (p *prefixIterator) Seek(seek []byte) {
 		}
 	}
 
+	p.moved = true
 	p.ManagedIterator.Seek(seek)
 	p.ManagedIterator.UpdateValid(p.checkKeyValid())
 }
 
-func (p *prefixIterator) Next() {
-	p.ManagedIterator.Next()
+func (p *prefixIterator) Next() bool {
+	if !p.moved {
+		p.First()
+		return p.ManagedIterator.Valid()
+	}
+
+	if ok := p.ManagedIterator.Next(); !ok {
+		return false
+	}
+
 	p.ManagedIterator.UpdateValid(p.checkKeyValid())
+	return p.ManagedIterator.Valid()
 }

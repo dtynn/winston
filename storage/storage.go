@@ -24,7 +24,7 @@ type Storage interface {
 type Iterator interface {
 	First()
 	Seek(seek []byte)
-	Next()
+	Next() bool
 	Key() []byte
 	Value() []byte
 	Valid() bool

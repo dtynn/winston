@@ -46,11 +46,22 @@ func (r *rangeIterator) Seek(seek []byte) {
 		seek = r.start
 	}
 
+	r.moved = true
+
 	r.ManagedIterator.Seek(seek)
 	r.ManagedIterator.UpdateValid(r.checkKeyValid())
 }
 
-func (r *rangeIterator) Next() {
-	r.ManagedIterator.Next()
+func (r *rangeIterator) Next() bool {
+	if !r.moved {
+		r.First()
+		return r.ManagedIterator.Valid()
+	}
+
+	if ok := r.ManagedIterator.Next(); !ok {
+		return false
+	}
+
 	r.ManagedIterator.UpdateValid(r.checkKeyValid())
+	return r.ManagedIterator.Valid()
 }
