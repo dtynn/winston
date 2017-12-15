@@ -290,7 +290,7 @@ func BenchmarkChunkIterRead(b *testing.B) {
 	}
 }
 
-func BenchmarkChunkIterRead1KItems(b *testing.B) {
+func BenchmarkChunkIterRead1K(b *testing.B) {
 	baseT := time.Now()
 	tm := baseT.Add(time.Hour)
 
@@ -316,7 +316,7 @@ func BenchmarkChunkIterRead1KItems(b *testing.B) {
 	}
 }
 
-func BenchmarkChunkIterRead10MItems(b *testing.B) {
+func BenchmarkChunkIterRead10M(b *testing.B) {
 	baseT := time.Now()
 	tm := baseT.Add(time.Hour)
 
