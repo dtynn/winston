@@ -1,4 +1,4 @@
-package boltdb
+package goleveldb
 
 import (
 	"testing"
@@ -20,21 +20,21 @@ func teardownTestStorage(s *Storage) {
 	s.cleanup()
 }
 
-func TestBoltdbPut(t *testing.T) {
+func TestGoLeveldbPut(t *testing.T) {
 	s := setupTestStorage(t)
 	defer teardownTestStorage(s)
 
 	test.StoragePut(t, s)
 }
 
-func TestBoltdbUpdate(t *testing.T) {
+func TestGoLeveldbUpdate(t *testing.T) {
 	s := setupTestStorage(t)
 	defer teardownTestStorage(s)
 
 	test.StorageUpdate(t, s)
 }
 
-func TestBoltdbDel(t *testing.T) {
+func TestGoLeveldbDel(t *testing.T) {
 	s := setupTestStorage(t)
 	defer teardownTestStorage(s)
 

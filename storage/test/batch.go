@@ -75,7 +75,7 @@ func Batch(t *testing.T, s storage.Storage) {
 		}
 	})
 
-	t.Run("BatchInit", func(t *testing.T) {
+	t.Run("BatchUpdate", func(t *testing.T) {
 		batch, err := s.Batch()
 		if err != nil {
 			t.Errorf("get batch %s", err)

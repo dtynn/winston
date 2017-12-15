@@ -1,6 +1,7 @@
 package test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/dtynn/winston/storage"
@@ -34,11 +35,17 @@ func StoragePut(t *testing.T, s storage.Storage) {
 		},
 	}
 
+	mgetKeys := make([][]byte, len(cases))
+	mgetVals := make([][]byte, len(cases))
+
 	for i, c := range cases {
 		if err := s.Put([]byte(c.key), []byte(c.val)); err != nil {
 			t.Errorf("#%d put: %s", i+1, err)
 			return
 		}
+
+		mgetKeys[i] = []byte(c.key)
+		mgetVals[i] = []byte(c.val)
 	}
 
 	for i, c := range cases {
@@ -51,6 +58,17 @@ func StoragePut(t *testing.T, s storage.Storage) {
 		if s := string(got); s != c.val {
 			t.Errorf("#%d expected %s, got %s", i+1, c.val, s)
 		}
+	}
+
+	mvals, err := s.MGet(mgetKeys...)
+	if err != nil {
+		t.Errorf("mget %s", err)
+		return
+	}
+
+	if !reflect.DeepEqual(mgetVals, mvals) {
+		t.Errorf("unexpected mget vals")
+		return
 	}
 }
 
@@ -155,11 +173,16 @@ func StorageDel(t *testing.T, s storage.Storage) {
 		},
 	}
 
+	mgetKeys := make([][]byte, len(cases))
+	mgetVals := make([][]byte, len(cases))
+
 	for i, c := range cases {
 		if err := s.Put([]byte(c.key), []byte(c.val)); err != nil {
 			t.Errorf("#%d put: %s", i+1, err)
 			return
 		}
+
+		mgetKeys[i] = []byte(c.key)
 	}
 
 	for i, c := range cases {
@@ -189,7 +212,17 @@ func StorageDel(t *testing.T, s storage.Storage) {
 		}
 
 		if got != nil {
-			t.Errorf("#%d expected nil, got %s", i+1, s)
+			t.Errorf("#%d expected nil after del, got %s", i+1, s)
 		}
+	}
+
+	mvals, err := s.MGet(mgetKeys...)
+	if err != nil {
+		t.Errorf("mget %s", err)
+		return
+	}
+
+	if !reflect.DeepEqual(mvals, mgetVals) {
+		t.Errorf("unexpected mget vals")
 	}
 }

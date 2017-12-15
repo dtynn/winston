@@ -41,7 +41,12 @@ func IteratorNormal(t *testing.T, s storage.Storage) {
 
 	got := make([]string, 0, len(keys))
 	for iter.First(); iter.Valid(); iter.Next() {
-		k := iter.Key()
+		k, v := iter.Key(), iter.Value()
+		if !reflect.DeepEqual(v, val) {
+			t.Errorf("unexpected value during iteration")
+			return
+		}
+
 		got = append(got, string(k))
 	}
 
@@ -152,14 +157,14 @@ func IteratorRange(t *testing.T, s storage.Storage) {
 	val := make([]byte, 256)
 	rand.Read(val)
 
-	t.Run("IteratorRange.Put", func(t *testing.T) {
-		for i, k := range keys {
-			if err := s.Put([]byte(k), val); err != nil {
-				t.Errorf("#%d put: %s", i+1, err)
-				return
-			}
+	// t.Run("IteratorRange.Put", func(t *testing.T) {
+	for i, k := range keys {
+		if err := s.Put([]byte(k), val); err != nil {
+			t.Errorf("#%d put: %s", i+1, err)
+			return
 		}
-	})
+	}
+	// })
 
 	testFn := func(t *testing.T, start, end []byte, expected []string) {
 		iter, err := s.RangeIterator(start, end)
