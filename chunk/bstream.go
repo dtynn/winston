@@ -179,45 +179,42 @@ func (bs *bstream) readBits(nbits uint) (uint64, error) {
 // MarshalBinary impl encoding.BinaryMarshaler
 func (bs *bstream) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	if err := bwrite(buf, bs.wBit); err != nil {
-		return nil, err
+	w := bwriter{
+		Writer: buf,
 	}
 
-	if err := bwrite(buf, int64(bs.rIdx)); err != nil {
-		return nil, err
-	}
+	w.write(bs.wBit)
+	w.write(int64(bs.rIdx))
+	w.write(bs.rBit)
+	w.write(bs.stream)
 
-	if err := bwrite(buf, bs.rBit); err != nil {
-		return nil, err
-	}
-
-	if err := bwrite(buf, bs.stream); err != nil {
-		return nil, err
+	if w.err != nil {
+		return nil, w.err
 	}
 
 	return buf.Bytes(), nil
 }
 
 // UnmarshalBinary impl encoding.BinaryUnmarshaler
-func (bs *bstream) UnmarshalBinary(b []byte) error {
-	buf := bytes.NewReader(b)
-
-	if err := bread(buf, &bs.wBit); err != nil {
-		return err
+func (bs *bstream) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewReader(data)
+	r := breader{
+		Reader: buf,
 	}
 
 	var rIdx int64
-	if err := bread(buf, &rIdx); err != nil {
-		return err
+
+	r.read(&bs.wBit)
+	r.read(&rIdx)
+	r.read(&bs.rBit)
+	if r.err != nil {
+		return r.err
 	}
 
 	bs.rIdx = int(rIdx)
 
-	if err := bread(buf, &bs.rBit); err != nil {
-		return err
-	}
-
 	bs.stream = make([]byte, buf.Len())
+	r.read(&bs.stream)
 
-	return bread(buf, &bs.stream)
+	return r.err
 }

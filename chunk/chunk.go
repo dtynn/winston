@@ -202,50 +202,28 @@ func (c *Chunk) Push(t int64, vbits uint64) {
 
 // MarshalBinary impl encoding.BinaryMarshaler
 func (c *Chunk) MarshalBinary() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := bwrite(buf, c.precision); err != nil {
-		return nil, err
-	}
-
-	if err := bwrite(buf, c.t0); err != nil {
-		return nil, err
-	}
-
-	if err := bwrite(buf, c.prevT); err != nil {
-		return nil, err
-	}
-
-	if err := bwrite(buf, c.tdelta); err != nil {
-		return nil, err
-	}
-
-	if err := bwrite(buf, c.prevVBits); err != nil {
-		return nil, err
-	}
-
-	if err := bwrite(buf, c.leading); err != nil {
-		return nil, err
-	}
-
-	if err := bwrite(buf, c.leading); err != nil {
-		return nil, err
-	}
-
-	if err := bwrite(buf, c.finished); err != nil {
-		return nil, err
-	}
-
-	if err := bwrite(buf, c.num); err != nil {
-		return nil, err
-	}
-
 	bsdata, err := c.bs.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := bwrite(buf, bsdata); err != nil {
+	buf := new(bytes.Buffer)
+	w := bwriter{
+		Writer: buf,
+	}
+
+	w.write(c.precision)
+	w.write(c.t0)
+	w.write(c.prevT)
+	w.write(c.tdelta)
+	w.write(c.prevVBits)
+	w.write(c.leading)
+	w.write(c.leading)
+	w.write(c.finished)
+	w.write(c.num)
+	w.write(bsdata)
+
+	if w.err != nil {
 		return nil, err
 	}
 
@@ -253,13 +231,16 @@ func (c *Chunk) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary impl encoding.BinaryUnmarshaler
-func (c *Chunk) UnmarshalBinary(buf []byte) error {
-	r := bytes.NewBuffer(buf)
+func (c *Chunk) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	r := breader{
+		Reader: buf,
+	}
 
 	var prec int64
-
-	if err := bread(r, &prec); err != nil {
-		return err
+	r.read(&prec)
+	if r.err != nil {
+		return r.err
 	}
 
 	c.precision = time.Duration(prec)
@@ -269,41 +250,22 @@ func (c *Chunk) UnmarshalBinary(buf []byte) error {
 	}
 	c.precisionSettings = settings
 
-	if err := bread(r, &c.t0); err != nil {
-		return err
+	r.read(&c.t0)
+	r.read(&c.prevT)
+	r.read(&c.tdelta)
+	r.read(&c.prevVBits)
+	r.read(&c.leading)
+	r.read(&c.leading)
+	r.read(&c.finished)
+	r.read(&c.num)
+	if r.err != nil {
+		return r.err
 	}
 
-	if err := bread(r, &c.prevT); err != nil {
-		return err
-	}
-
-	if err := bread(r, &c.tdelta); err != nil {
-		return err
-	}
-
-	if err := bread(r, &c.prevVBits); err != nil {
-		return err
-	}
-
-	if err := bread(r, &c.leading); err != nil {
-		return err
-	}
-
-	if err := bread(r, &c.leading); err != nil {
-		return err
-	}
-
-	if err := bread(r, &c.finished); err != nil {
-		return err
-	}
-
-	if err := bread(r, &c.num); err != nil {
-		return err
-	}
-
-	bsdata := make([]byte, r.Len())
-	if err := bread(r, &bsdata); err != nil {
-		return err
+	bsdata := make([]byte, buf.Len())
+	r.read(&bsdata)
+	if r.err != nil {
+		return r.err
 	}
 
 	c.bs = new(bstream)

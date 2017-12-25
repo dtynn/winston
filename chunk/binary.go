@@ -5,10 +5,24 @@ import (
 	"io"
 )
 
-func bwrite(buf io.Writer, data interface{}) error {
-	return binary.Write(buf, binary.BigEndian, data)
+type bwriter struct {
+	io.Writer
+	err error
 }
 
-func bread(r io.Reader, data interface{}) error {
-	return binary.Read(r, binary.BigEndian, data)
+func (b *bwriter) write(data interface{}) {
+	if b.err == nil {
+		b.err = binary.Write(b.Writer, binary.BigEndian, data)
+	}
+}
+
+type breader struct {
+	io.Reader
+	err error
+}
+
+func (b *breader) read(data interface{}) {
+	if b.err == nil {
+		b.err = binary.Read(b.Reader, binary.BigEndian, data)
+	}
 }
