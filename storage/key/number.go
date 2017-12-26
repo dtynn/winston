@@ -10,7 +10,7 @@ var (
 	ErrMalformedKeySize = errors.New("malformed key size")
 )
 
-// UI64 key formater wrapper of uint64
+// UI64 key formatter wrapper of uint64
 type UI64 uint64
 
 // Bytes return bytes
@@ -30,7 +30,7 @@ func (u *UI64) UnmarshalBinary(buf []byte) error {
 	return nil
 }
 
-// I64 key formater wrapper of int64
+// I64 key formatter wrapper of int64
 type I64 int64
 
 // Bytes return bytes
@@ -50,7 +50,7 @@ func (i *I64) UnmarshalBinary(buf []byte) error {
 	return nil
 }
 
-// UI32 key formater wrapper of uint32
+// UI32 key formatter wrapper of uint32
 type UI32 uint32
 
 // Bytes return bytes
@@ -70,7 +70,7 @@ func (u *UI32) UnmarshalBinary(buf []byte) error {
 	return nil
 }
 
-// I32 key formater wrapper of int32
+// I32 key formatter wrapper of int32
 type I32 int32
 
 // Bytes return bytes

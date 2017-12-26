@@ -11,13 +11,13 @@ var (
 	ErrMalformedKeyPrefix = errors.New("malformed key prefix")
 )
 
-// Formater the content part of a storage key
-type Formater interface {
+// Formatter the content part of a storage key
+type Formatter interface {
 	Bytes() []byte
 }
 
 // Key return a storage key of parts
-func Key(prefix []byte, formater Formater) []byte {
+func Key(prefix []byte, formater Formatter) []byte {
 	f := formater.Bytes()
 	key := make([]byte, len(prefix)+len(f))
 	copy(key, prefix)
