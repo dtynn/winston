@@ -25,7 +25,7 @@ type DataNode struct {
 func (m *DataNode) Reset()                    { *m = DataNode{} }
 func (m *DataNode) String() string            { return proto.CompactTextString(m) }
 func (*DataNode) ProtoMessage()               {}
-func (*DataNode) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (*DataNode) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
 func (m *DataNode) GetId() uint64 {
 	if m != nil {
@@ -49,7 +49,7 @@ type RaftGroup struct {
 func (m *RaftGroup) Reset()                    { *m = RaftGroup{} }
 func (m *RaftGroup) String() string            { return proto.CompactTextString(m) }
 func (*RaftGroup) ProtoMessage()               {}
-func (*RaftGroup) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
+func (*RaftGroup) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
 
 func (m *RaftGroup) GetId() uint64 {
 	if m != nil {
@@ -72,7 +72,7 @@ type RaftAddGroup struct {
 func (m *RaftAddGroup) Reset()                    { *m = RaftAddGroup{} }
 func (m *RaftAddGroup) String() string            { return proto.CompactTextString(m) }
 func (*RaftAddGroup) ProtoMessage()               {}
-func (*RaftAddGroup) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
+func (*RaftAddGroup) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
 
 func (m *RaftAddGroup) GetGroup() *RaftGroup {
 	if m != nil {
@@ -88,7 +88,7 @@ type RaftAddGroupResp struct {
 func (m *RaftAddGroupResp) Reset()                    { *m = RaftAddGroupResp{} }
 func (m *RaftAddGroupResp) String() string            { return proto.CompactTextString(m) }
 func (*RaftAddGroupResp) ProtoMessage()               {}
-func (*RaftAddGroupResp) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
+func (*RaftAddGroupResp) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
 
 func (m *RaftAddGroupResp) GetResult() *Result {
 	if m != nil {
@@ -104,7 +104,7 @@ type RaftMessage struct {
 func (m *RaftMessage) Reset()                    { *m = RaftMessage{} }
 func (m *RaftMessage) String() string            { return proto.CompactTextString(m) }
 func (*RaftMessage) ProtoMessage()               {}
-func (*RaftMessage) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{4} }
+func (*RaftMessage) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{4} }
 
 func (m *RaftMessage) GetMessage() []*RaftGroupMessage {
 	if m != nil {
@@ -121,7 +121,7 @@ type RaftGroupMessage struct {
 func (m *RaftGroupMessage) Reset()                    { *m = RaftGroupMessage{} }
 func (m *RaftGroupMessage) String() string            { return proto.CompactTextString(m) }
 func (*RaftGroupMessage) ProtoMessage()               {}
-func (*RaftGroupMessage) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{5} }
+func (*RaftGroupMessage) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{5} }
 
 func (m *RaftGroupMessage) GetId() uint64 {
 	if m != nil {
@@ -144,7 +144,7 @@ type RaftMessageResponse struct {
 func (m *RaftMessageResponse) Reset()                    { *m = RaftMessageResponse{} }
 func (m *RaftMessageResponse) String() string            { return proto.CompactTextString(m) }
 func (*RaftMessageResponse) ProtoMessage()               {}
-func (*RaftMessageResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{6} }
+func (*RaftMessageResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{6} }
 
 func (m *RaftMessageResponse) GetResponse() []*RaftGroupMessageResponse {
 	if m != nil {
@@ -160,7 +160,7 @@ type RaftGroupMessageResponse struct {
 func (m *RaftGroupMessageResponse) Reset()                    { *m = RaftGroupMessageResponse{} }
 func (m *RaftGroupMessageResponse) String() string            { return proto.CompactTextString(m) }
 func (*RaftGroupMessageResponse) ProtoMessage()               {}
-func (*RaftGroupMessageResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{7} }
+func (*RaftGroupMessageResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{7} }
 
 func (m *RaftGroupMessageResponse) GetResult() *Result {
 	if m != nil {
@@ -289,9 +289,9 @@ var _Raft_serviceDesc = grpc.ServiceDesc{
 	Metadata: "raft.proto",
 }
 
-func init() { proto.RegisterFile("raft.proto", fileDescriptor1) }
+func init() { proto.RegisterFile("raft.proto", fileDescriptor2) }
 
-var fileDescriptor1 = []byte{
+var fileDescriptor2 = []byte{
 	// 313 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x52, 0x5d, 0x4b, 0xf3, 0x30,
 	0x14, 0xa6, 0xdd, 0xde, 0x7d, 0x9c, 0xf5, 0xd5, 0x12, 0x07, 0x86, 0xe2, 0x45, 0x89, 0x37, 0xbd,

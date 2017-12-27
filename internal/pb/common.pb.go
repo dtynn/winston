@@ -6,10 +6,14 @@ Package pb is a generated protocol buffer package.
 
 It is generated from these files:
 	common.proto
+	meta.proto
 	raft.proto
 
 It has these top-level messages:
 	Result
+	Node
+	MetaAddMetaNodeReq
+	MetaAddMetaNodeResp
 	DataNode
 	RaftGroup
 	RaftAddGroup
