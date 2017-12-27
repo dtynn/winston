@@ -3,6 +3,7 @@ package meta
 import (
 	"net"
 
+	"github.com/coreos/etcd/raft"
 	"go.uber.org/zap"
 )
 
@@ -15,6 +16,8 @@ const (
 type Service struct {
 	ln     net.Listener
 	logger *zap.SugaredLogger
+
+	raft raft.Node
 }
 
 // Start start the meta service
@@ -30,6 +33,6 @@ func (s *Service) Close() error {
 // WithLogger setup logger
 func (s *Service) WithLogger(logger *zap.Logger) {
 	if logger != nil {
-		s.logger = logger.Sugar()
+		s.logger = logger.With(zap.String("service", "meta")).Sugar()
 	}
 }
