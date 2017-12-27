@@ -14,6 +14,11 @@ func (i *Iterator) First() {
 	i.iter.First()
 }
 
+// Last move to the last entry
+func (i *Iterator) Last() {
+	i.iter.Last()
+}
+
 // Seek move to the key equal or greater than seek. If no key exists, return false
 func (i *Iterator) Seek(seek []byte) {
 	i.iter.Seek(seek)
@@ -22,6 +27,11 @@ func (i *Iterator) Seek(seek []byte) {
 // Next move to the next key
 func (i *Iterator) Next() bool {
 	return i.iter.Next()
+}
+
+// Prev move to the previous key
+func (i *Iterator) Prev() bool {
+	return i.iter.Prev()
 }
 
 // Key current key of the cursor

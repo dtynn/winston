@@ -46,25 +46,51 @@ func Iterator(t *testing.T, s storage.Storage) {
 
 		defer iter.Close()
 
-		got := make([]string, 0, len(expected))
-		for iter.First(); iter.Valid(); iter.Next() {
-			k, v := iter.Key(), iter.Value()
-			if !reflect.DeepEqual(v, val) {
-				t.Errorf("unexpected value during iteration")
+		{
+			got := make([]string, 0, len(expected))
+			for iter.First(); iter.Valid(); iter.Next() {
+				k, v := iter.Key(), iter.Value()
+				if !reflect.DeepEqual(v, val) {
+					t.Errorf("unexpected value during iteration")
+					return
+				}
+
+				got = append(got, string(k))
+			}
+
+			if err := iter.Err(); err != nil {
+				t.Errorf("got iter err: %s", err)
 				return
 			}
 
-			got = append(got, string(k))
+			if !reflect.DeepEqual(expected, got) {
+				t.Errorf("expected keys %v, got %v", expected, got)
+				return
+			}
 		}
 
-		if err := iter.Err(); err != nil {
-			t.Errorf("got iter err: %s", err)
-			return
-		}
+		// reverse
+		{
+			got := make([]string, 0, len(expected))
+			for iter.Last(); iter.Valid(); iter.Prev() {
+				k, v := iter.Key(), iter.Value()
+				if !reflect.DeepEqual(v, val) {
+					t.Errorf("unexpected value during iteration")
+					return
+				}
 
-		if !reflect.DeepEqual(expected, got) {
-			t.Errorf("expected keys %v, got %v", expected, got)
-			return
+				got = append([]string{string(k)}, got...)
+			}
+
+			if err := iter.Err(); err != nil {
+				t.Errorf("got iter err: %s", err)
+				return
+			}
+
+			if !reflect.DeepEqual(expected, got) {
+				t.Errorf("expected keys %v, got %v", expected, got)
+				return
+			}
 		}
 	}
 
@@ -108,25 +134,51 @@ func Iterator(t *testing.T, s storage.Storage) {
 
 		defer iter.Close()
 
-		got := make([]string, 0, len(expected))
-		for iter.First(); iter.Valid(); iter.Next() {
-			k, v := iter.Key(), iter.Value()
-			if !reflect.DeepEqual(v, val) {
-				t.Errorf("unexpected value during iteration")
+		{
+			got := make([]string, 0, len(expected))
+			for iter.First(); iter.Valid(); iter.Next() {
+				k, v := iter.Key(), iter.Value()
+				if !reflect.DeepEqual(v, val) {
+					t.Errorf("unexpected value during iteration")
+					return
+				}
+
+				got = append(got, string(k))
+			}
+
+			if err := iter.Err(); err != nil {
+				t.Errorf("got iter err: %s", err)
 				return
 			}
 
-			got = append(got, string(k))
+			if !reflect.DeepEqual(expected, got) {
+				t.Errorf("expected keys %v, got %v", expected, got)
+				return
+			}
 		}
 
-		if err := iter.Err(); err != nil {
-			t.Errorf("got iter err: %s", err)
-			return
-		}
+		// reverse
+		{
+			got := make([]string, 0, len(expected))
+			for iter.Last(); iter.Valid(); iter.Prev() {
+				k, v := iter.Key(), iter.Value()
+				if !reflect.DeepEqual(v, val) {
+					t.Errorf("unexpected value during iteration")
+					return
+				}
 
-		if !reflect.DeepEqual(expected, got) {
-			t.Errorf("expected keys %v, got %v", expected, got)
-			return
+				got = append([]string{string(k)}, got...)
+			}
+
+			if err := iter.Err(); err != nil {
+				t.Errorf("got iter err: %s", err)
+				return
+			}
+
+			if !reflect.DeepEqual(expected, got) {
+				t.Errorf("expected keys %v, got %v", expected, got)
+				return
+			}
 		}
 	}
 

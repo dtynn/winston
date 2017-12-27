@@ -107,41 +107,25 @@ func (s *Storage) Del(key []byte) error {
 
 // PrefixIterator return a iterator with prefix
 func (s *Storage) PrefixIterator(prefix []byte) (storage.Iterator, error) {
-	iter, err := s.iterator()
-	if err != nil {
-		return nil, err
-	}
-
-	if prefix != nil {
-		return storage.PrefixIterator(prefix, iter), nil
-	}
-
-	return iter, nil
+	return s.iterator(prefix, storage.PrefixEnd(prefix))
 }
 
 // RangeIterator return a iterator within the range
 func (s *Storage) RangeIterator(start, end []byte) (storage.Iterator, error) {
-	iter, err := s.iterator()
-	if err != nil {
-		return nil, err
-	}
-
-	if start != nil || end != nil {
-		return storage.RangeIterator(start, end, iter), nil
-	}
-
-	return iter, nil
+	return s.iterator(start, end)
 }
 
-func (s *Storage) iterator() (*Iterator, error) {
+func (s *Storage) iterator(start, end []byte) (*Iterator, error) {
 	tx, err := s.db.Begin(false)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Iterator{
-		tx:  tx,
-		cur: tx.Bucket(s.bucket).Cursor(),
+		start: start,
+		end:   end,
+		tx:    tx,
+		cur:   tx.Bucket(s.bucket).Cursor(),
 	}, nil
 }
 

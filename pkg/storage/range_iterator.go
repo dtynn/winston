@@ -2,66 +2,37 @@ package storage
 
 import "bytes"
 
-var (
-	_ Iterator = (*rangeIterator)(nil)
-)
-
-// RangeIterator return a wrapped iterator
-func RangeIterator(start, end []byte, iter ManagedIterator) Iterator {
-	if start == nil && end == nil {
-		return iter
+// PrefixEnd key upper bound for the prefix
+func PrefixEnd(prefix []byte) []byte {
+	if len(prefix) == 0 {
+		return nil
 	}
 
-	wrapped := &rangeIterator{
-		start:           start,
-		end:             end,
-		ManagedIterator: iter,
+	for i := len(prefix) - 1; i >= 0; i-- {
+		c := prefix[i]
+		if c < 0xff {
+			end := make([]byte, i+1)
+			copy(end, prefix)
+			end[i] = c + 1
+			return end
+		}
 	}
 
-	return wrapped
+	end := make([]byte, len(prefix)+1)
+	copy(end, prefix)
+	end[len(prefix)] = 0x00
+	return end
 }
 
-type rangeIterator struct {
-	start, end []byte
-	ManagedIterator
-	moved bool
-}
-
-func (r *rangeIterator) checkKeyValid() bool {
-	key := r.ManagedIterator.Key()
-	valid := key != nil
-	if valid && r.end != nil {
-		valid = bytes.Compare(key, r.end) < 0
-	}
-
-	return valid
-}
-
-func (r *rangeIterator) First() {
-	r.Seek(r.start)
-}
-
-func (r *rangeIterator) Seek(seek []byte) {
-	if r.start != nil && bytes.Compare(seek, r.start) < 0 {
-		seek = r.start
-	}
-
-	r.moved = true
-
-	r.ManagedIterator.Seek(seek)
-	r.ManagedIterator.UpdateValid(r.checkKeyValid())
-}
-
-func (r *rangeIterator) Next() bool {
-	if !r.moved {
-		r.First()
-		return r.ManagedIterator.Valid()
-	}
-
-	if ok := r.ManagedIterator.Next(); !ok {
+// KeyInRange check if key in the range [start, end)
+func KeyInRange(key, start, end []byte) bool {
+	if start != nil && bytes.Compare(key, start) < 0 {
 		return false
 	}
 
-	r.ManagedIterator.UpdateValid(r.checkKeyValid())
-	return r.ManagedIterator.Valid()
+	if end != nil && bytes.Compare(key, end) >= 0 {
+		return false
+	}
+
+	return true
 }

@@ -23,20 +23,16 @@ type Storage interface {
 // Iterator iter interface
 type Iterator interface {
 	First()
+	Last()
 	Seek(seek []byte)
 	Next() bool
+	Prev() bool
 	Key() []byte
 	Value() []byte
 	Valid() bool
 
 	Close() error
 	Err() error
-}
-
-// ManagedIterator used for prefix iterator wrapper or range iterator wrapper
-type ManagedIterator interface {
-	Iterator
-	UpdateValid(valid bool)
 }
 
 // Batch batch interface
