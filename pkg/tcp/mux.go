@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,8 +27,6 @@ type Mux struct {
 	defaultListener *listener
 
 	wg sync.WaitGroup
-
-	serveC chan struct{}
 
 	// The amount of time to wait for the first header byte.
 	Timeout time.Duration
@@ -57,34 +56,22 @@ func (rc *replayConn) Read(b []byte) (int, error) {
 }
 
 // NewMux returns a new instance of Mux.
-func NewMux() *Mux {
+func NewMux(ln net.Listener) *Mux {
 	return &Mux{
+		ln:      ln,
 		m:       make(map[byte]*listener),
-		serveC:  make(chan struct{}),
 		Timeout: DefaultTimeout,
 		logger:  zap.NewNop().Sugar(),
 	}
 }
 
-// WithLogger use customed logger
-func (mux *Mux) WithLogger(logger *zap.Logger) {
-	if logger != nil {
-		mux.logger = logger.With(zap.String("pkg", "tcpmux")).Sugar()
-	}
-}
-
-// Serve handles connections from ln and multiplexes then across registered listeners.
-func (mux *Mux) Serve(ln net.Listener) error {
-	mux.ln = ln
-
-	// will panic if called multiple times
-	close(mux.serveC)
-
+// Start handles connections from ln and multiplexes then across registered listeners.
+func (mux *Mux) Start() error {
 	for {
 		// Wait for the next connection.
 		// If it returns a temporary error then simply retry.
 		// If it returns any other error then exit immediately.
-		conn, err := ln.Accept()
+		conn, err := mux.ln.Accept()
 		if err, ok := err.(interface {
 			Temporary() bool
 		}); ok && err.Temporary() {
@@ -107,6 +94,23 @@ func (mux *Mux) Serve(ln net.Listener) error {
 		// Demux in a goroutine to
 		mux.wg.Add(1)
 		go mux.handleConn(conn)
+	}
+}
+
+// Close should directly close the original net listener
+func (mux *Mux) Close() error {
+	err := mux.ln.Close()
+	if err != nil && strings.HasSuffix(err.Error(), "use of closed network connection") {
+		err = nil
+	}
+
+	return err
+}
+
+// WithLogger use customed logger
+func (mux *Mux) WithLogger(logger *zap.Logger) {
+	if logger != nil {
+		mux.logger = logger.With(zap.String("pkg", "tcpmux")).Sugar()
 	}
 }
 
@@ -156,6 +160,7 @@ func (mux *Mux) handleConn(conn net.Conn) {
 
 	select {
 	case handler.c <- conn:
+
 	case <-timer.C:
 		conn.Close()
 		mux.logger.Warnf("handler not ready: %d. Connection from %s closed", typ[0], conn.RemoteAddr())
@@ -220,13 +225,7 @@ func (ln *listener) Close() error { return nil }
 
 // Addr returns the Addr of the listener
 func (ln *listener) Addr() net.Addr {
-	if ln.mux == nil {
-		return nil
-	}
-
-	<-ln.mux.serveC
-
-	if ln.mux.ln == nil {
+	if ln.mux == nil || ln.mux.ln == nil {
 		return nil
 	}
 
