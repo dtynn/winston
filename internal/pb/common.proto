@@ -1,0 +1,14 @@
+syntax = "proto3";
+package pb;
+
+enum ResultCode {
+	ResultCodeOK = 0;
+	ResultCodeUnknown = 1;
+	ResultCodeInternal = 2;
+	ResultCodeRaftDuplicateGroupID = 100001;
+}
+
+message Result {
+	ResultCode code = 1;
+	string Message = 2;
+}

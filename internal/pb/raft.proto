@@ -1,0 +1,47 @@
+syntax = "proto3";
+package pb;
+
+import "common.proto";
+
+service Raft {
+	// add raft group
+	rpc AddGroup(RaftAddGroup) returns (RaftAddGroupResp);
+
+	// process raft messages
+	rpc Message(RaftMessage) returns (RaftMessageResponse);
+}
+
+message DataNode{
+	uint64 id = 1;
+	string address = 2;
+}
+
+message RaftGroup {
+	uint64 id = 1;
+	repeated DataNode node = 2;
+}
+
+message RaftAddGroup {
+	RaftGroup group = 1;
+}
+
+message RaftAddGroupResp {
+	Result result = 1;
+}
+
+message RaftMessage {
+	repeated RaftGroupMessage message = 1;
+}
+
+message RaftGroupMessage {
+	uint64 id = 1;
+	repeated bytes raw = 2;
+}
+
+message RaftMessageResponse {
+	repeated RaftGroupMessageResponse response = 1;
+}
+
+message RaftGroupMessageResponse {
+	Result result = 1;
+}
