@@ -1,12 +1,12 @@
-package goleveldb
+package boltdb
 
 import (
 	"testing"
 
-	"github.com/dtynn/winston/storage/test"
+	"github.com/dtynn/winston/pkg/storage/test"
 )
 
-func TestGoLeveldbBatch(t *testing.T) {
+func TestBoltdbBatch(t *testing.T) {
 	s := setupTestStorage(t)
 	defer teardownTestStorage(s)
 

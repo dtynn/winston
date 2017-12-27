@@ -1,16 +1,14 @@
-package goleveldb
+package boltdb
 
 import (
 	"os"
 	"path/filepath"
 
-	"github.com/dtynn/winston/storage"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
-	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/coreos/bbolt"
+	"github.com/dtynn/winston/pkg/storage"
 )
 
-// Open return a goleveldb storage
+// Open return a boltdb storage
 func Open(path string, opts ...Option) (*Storage, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -25,21 +23,24 @@ func Open(path string, opts ...Option) (*Storage, error) {
 	s := &Storage{
 		dir:    dir,
 		path:   abs,
-		option: &opt.Options{},
-
-		sropt: &opt.ReadOptions{},
-		swopt: &opt.WriteOptions{},
-
-		itopt: &opt.ReadOptions{},
-		bwopt: &opt.WriteOptions{},
+		bucket: defaultBucket,
+		opt:    *bolt.DefaultOptions,
 	}
 
 	for _, o := range opts {
 		o(s)
 	}
 
-	db, err := leveldb.OpenFile(path, s.option)
+	db, err := bolt.Open(path, 0600, &s.opt)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists(s.bucket)
+		return err
+
+	}); err != nil {
 		return nil, err
 	}
 
@@ -49,50 +50,42 @@ func Open(path string, opts ...Option) (*Storage, error) {
 
 // Storage storage implementation
 type Storage struct {
-	dir  string
-	path string
+	dir    string
+	path   string
+	bucket []byte
 
-	db     *leveldb.DB
-	option *opt.Options
-
-	sropt *opt.ReadOptions
-	swopt *opt.WriteOptions
-
-	itopt *opt.ReadOptions
-	bwopt *opt.WriteOptions
+	opt bolt.Options
+	db  *bolt.DB
 }
 
 // Get return value for specified key, return nil if key not found
 func (s *Storage) Get(key []byte) ([]byte, error) {
-	val, err := s.db.Get(key, nil)
-	if err == leveldb.ErrNotFound {
-		return nil, nil
+	var val []byte
+
+	if err := s.db.View(func(tx *bolt.Tx) error {
+		val = tx.Bucket(s.bucket).Get(key)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
-	return val, err
+	return val, nil
 }
 
 // MGet return values fro multiple keys
 func (s *Storage) MGet(keys ...[]byte) ([][]byte, error) {
-	ss, err := s.db.GetSnapshot()
-	if err != nil {
-		return nil, err
-	}
-
-	defer ss.Release()
-
 	vals := make([][]byte, len(keys))
-	for i, k := range keys {
-		val, err := ss.Get(k, nil)
-		if err == leveldb.ErrNotFound {
-			continue
+
+	if err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(s.bucket)
+		for i, key := range keys {
+			vals[i] = b.Get(key)
 		}
 
-		if err != nil {
-			return nil, err
-		}
+		return nil
 
-		vals[i] = val
+	}); err != nil {
+		return nil, err
 	}
 
 	return vals, nil
@@ -100,49 +93,68 @@ func (s *Storage) MGet(keys ...[]byte) ([][]byte, error) {
 
 // Put udpate the key with val
 func (s *Storage) Put(key, val []byte) error {
-	return s.db.Put(key, val, nil)
+	return s.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(s.bucket).Put(key, val)
+	})
 }
 
 // Del delete the key
 func (s *Storage) Del(key []byte) error {
-	return s.db.Delete(key, nil)
+	return s.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(s.bucket).Delete(key)
+	})
 }
 
 // PrefixIterator return a iterator with prefix
 func (s *Storage) PrefixIterator(prefix []byte) (storage.Iterator, error) {
-	var slice *util.Range
-	if prefix != nil {
-		slice = util.BytesPrefix(prefix)
+	iter, err := s.iterator()
+	if err != nil {
+		return nil, err
 	}
 
-	return s.iterator(slice)
+	if prefix != nil {
+		return storage.PrefixIterator(prefix, iter), nil
+	}
+
+	return iter, nil
 }
 
 // RangeIterator return a iterator within the range
 func (s *Storage) RangeIterator(start, end []byte) (storage.Iterator, error) {
-	var slice *util.Range
-	if start != nil || end != nil {
-		slice = &util.Range{
-			Start: start,
-			Limit: end,
-		}
+	iter, err := s.iterator()
+	if err != nil {
+		return nil, err
 	}
 
-	return s.iterator(slice)
+	if start != nil || end != nil {
+		return storage.RangeIterator(start, end, iter), nil
+	}
+
+	return iter, nil
 }
 
-func (s *Storage) iterator(slice *util.Range) (*Iterator, error) {
+func (s *Storage) iterator() (*Iterator, error) {
+	tx, err := s.db.Begin(false)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Iterator{
-		iter: s.db.NewIterator(slice, s.itopt),
+		tx:  tx,
+		cur: tx.Bucket(s.bucket).Cursor(),
 	}, nil
 }
 
 // Batch open a batch
 func (s *Storage) Batch() (storage.Batch, error) {
+	tx, err := s.db.Begin(true)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Batch{
-		db:    s.db,
-		batch: new(leveldb.Batch),
+		tx:     tx,
+		bucket: tx.Bucket(s.bucket),
 	}, nil
 }
 
@@ -153,7 +165,7 @@ func (s *Storage) Close() error {
 
 // GC garbage collection
 func (s *Storage) GC() error {
-	return s.db.CompactRange(util.Range{})
+	return nil
 }
 
 func (s *Storage) cleanup() error {

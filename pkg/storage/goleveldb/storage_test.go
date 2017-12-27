@@ -3,7 +3,7 @@ package goleveldb
 import (
 	"testing"
 
-	"github.com/dtynn/winston/storage/test"
+	"github.com/dtynn/winston/pkg/storage/test"
 )
 
 func setupTestStorage(t *testing.T) *Storage {

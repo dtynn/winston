@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dtynn/winston/storage"
+	"github.com/dtynn/winston/pkg/storage"
 )
 
 // Iterator normal iterator

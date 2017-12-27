@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dtynn/winston/storage"
+	"github.com/dtynn/winston/pkg/storage"
 )
 
 // StorageUpdate test case for key update
