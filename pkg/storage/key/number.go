@@ -30,6 +30,11 @@ func (u *UI64) UnmarshalBinary(buf []byte) error {
 	return nil
 }
 
+// Size implement FixedFormater
+func (UI64) Size() int {
+	return 8
+}
+
 // I64 key formatter wrapper of int64
 type I64 int64
 
@@ -48,6 +53,11 @@ func (i *I64) UnmarshalBinary(buf []byte) error {
 
 	*i = I64(binary.BigEndian.Uint64(buf))
 	return nil
+}
+
+// Size implement FixedFormater
+func (I64) Size() int {
+	return 8
 }
 
 // UI32 key formatter wrapper of uint32
@@ -70,6 +80,11 @@ func (u *UI32) UnmarshalBinary(buf []byte) error {
 	return nil
 }
 
+// Size implement FixedFormater
+func (UI32) Size() int {
+	return 4
+}
+
 // I32 key formatter wrapper of int32
 type I32 int32
 
@@ -88,4 +103,9 @@ func (i *I32) UnmarshalBinary(buf []byte) error {
 
 	*i = I32(binary.BigEndian.Uint32(buf))
 	return nil
+}
+
+// Size implement FixedFormater
+func (I32) Size() int {
+	return 4
 }

@@ -116,4 +116,42 @@ func TestNumber(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("Fixed", func(t *testing.T) {
+		prefix := []byte("_fixed_")
+
+		f1 := UI64(rand.Uint64())
+		f2 := I64(rand.Int63())
+		f3 := UI32(rand.Uint32())
+		f4 := I32(rand.Int31())
+
+		fs := FixedFormatters{&f1, &f2, &f3, &f4}
+		key := Key(prefix, fs)
+
+		var r1 UI64
+		var r2 I64
+		var r3 UI32
+		var r4 I32
+
+		rs := FixedFormatters{&r1, &r2, &r3, &r4}
+		if err := Unmarshal(key, prefix, rs); err != nil {
+			t.Fatal(err)
+		}
+
+		if r1 != f1 {
+			t.Errorf("expected uint64 %d, got %d", f1, r1)
+		}
+
+		if r2 != f2 {
+			t.Errorf("expected int64 %d, got %d", f2, r2)
+		}
+
+		if r3 != f3 {
+			t.Errorf("expected uint32 %d, got %d", f3, r3)
+		}
+
+		if r4 != f4 {
+			t.Errorf("expected int32 %d, got %d", f4, r4)
+		}
+	})
 }

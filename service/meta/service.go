@@ -27,6 +27,7 @@ func (s *Service) Start() error {
 
 // Close close the meta service
 func (s *Service) Close() error {
+	s.raft.Stop()
 	return nil
 }
 
