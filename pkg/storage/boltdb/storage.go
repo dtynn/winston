@@ -131,14 +131,12 @@ func (s *Storage) iterator(start, end []byte) (*Iterator, error) {
 
 // Batch open a batch
 func (s *Storage) Batch() (storage.Batch, error) {
-	tx, err := s.db.Begin(true)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Batch{
-		tx:     tx,
-		bucket: tx.Bucket(s.bucket),
+		s: s,
+		batchOp: batchOp{
+			put: make([][2][]byte, 0, 100),
+			del: make([][]byte, 0, 100),
+		},
 	}, nil
 }
 

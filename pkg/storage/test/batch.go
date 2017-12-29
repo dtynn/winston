@@ -126,4 +126,51 @@ func Batch(t *testing.T, s storage.Storage) {
 			}
 		}
 	})
+
+	t.Run("IterAndBatchDel", func(t *testing.T) {
+		iter, err := s.PrefixIterator(nil)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		batch, err := s.Batch()
+		if err != nil {
+			t.Error(err)
+			iter.Close()
+			return
+		}
+
+		defer batch.Close()
+
+		expected := 3
+		deleted := 0
+		for iter.Next() {
+			key := iter.Key()
+			batch.Del(key)
+			deleted++
+		}
+
+		iter.Close()
+
+		if deleted != expected {
+			t.Errorf("expected %d to be deleted, got %d", expected, deleted)
+		}
+
+		if err := batch.Commit(); err != nil {
+			t.Error(err)
+			return
+		}
+
+		for i, c := range cases {
+			val, err := s.Get(c.key)
+			if err != nil {
+				t.Errorf("#%d should be deleted", i+1)
+			}
+
+			if val != nil {
+				t.Errorf("#%d expected nil value, got %v", i+1, val)
+			}
+		}
+	})
 }

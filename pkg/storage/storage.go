@@ -1,5 +1,12 @@
 package storage
 
+import "errors"
+
+var (
+	// ErrBatchClosed common error for batch closed
+	ErrBatchClosed = errors.New("storage batch closed")
+)
+
 // Storage storage interface
 type Storage interface {
 	// if key not found, just return nil value
